@@ -11,6 +11,11 @@ using namespace std;
 
 class PathPlanner {
 public:
+  enum GeneratorType {
+    GEN_SPLINE,
+    GEN_JMT,
+    GEN_SIMPLE
+  };
 
   PathPlanner()
     : currentLane(0)
@@ -21,12 +26,13 @@ public:
 
   array<vector<double>, 2> plan(const SignalState& state);
 
+  GeneratorType getGeneratorType()
+  { return currentType; }
+
+  void setGeneratorType(GeneratorType type)
+  { currentType = type; }
+
 private:
-  enum GeneratorType {
-    GEN_SPLINE,
-    GEN_JMT,
-    GEN_SIMPLE
-  };
 
   TrajectoryGenerator trjGenerator;
   Predictor predictor;

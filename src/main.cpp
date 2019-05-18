@@ -106,6 +106,9 @@ int main() {
             map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy,
             previous_path_x, previous_path_y, end_path_s, end_path_d, sensor_fusion);
 
+          // set generator type
+          planner.setGeneratorType(PathPlanner::GEN_SPLINE);
+
           auto next_vals = std::move(planner.plan(state));
 
           msgJson["next_x"] = next_vals.at(0);
