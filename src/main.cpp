@@ -82,31 +82,12 @@ int main() {
           double car_yaw = j[1]["yaw"];
           double car_speed = j[1]["speed"];
 
-          // pack localization data for path planner
-          array<double, 6> localizationData {
-              car_x, car_y, car_s, car_d, car_yaw, car_speed
-            };
-
-          // pack map waypoints for path planner
-          array<vector<double>, 5> map_waypoints = {
-            map_waypoints_x,
-            map_waypoints_y,
-            map_waypoints_s,
-            map_waypoints_dx,
-            map_waypoints_dy
-          };
-
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
           auto previous_path_y = j[1]["previous_path_y"];
           // Previous path's end s and d values
           double end_path_s = j[1]["end_path_s"];
           double end_path_d = j[1]["end_path_d"];
-
-          // pack end path data for path planner
-          array<double, 2> end_path_Frenet {
-              end_path_s, end_path_d
-            };
 
           // Sensor Fusion Data, a list of all other cars on the same side
           //   of the road.
@@ -121,9 +102,11 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+          SignalState state(car_x, car_y, car_s, car_d, car_yaw, car_speed,
+            map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy,
+            previous_path_x, previous_path_y, end_path_s, end_path_d, sensor_fusion);
 
-          auto next_vals = std::move(planner.plan(localizationData, previous_path_x, previous_path_y,
-                    end_path_Frenet, sensor_fusion, map_waypoints));
+          auto next_vals = std::move(planner.plan(state));
 
           msgJson["next_x"] = next_vals.at(0);
           msgJson["next_y"] = next_vals.at(1);

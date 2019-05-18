@@ -1,28 +1,27 @@
 #include <utility>
+#include <iostream>
 
 #include "PathPlanner.h"
 
-array<vector<double>, 2> PathPlanner::plan(const array<double, 6>& localizationData,
-      const vector<double>& prev_path_x, const vector<double>& prev_path_y,
-      const array<double, 2>& end_path_Frenet,
-      const vector<vector<double>>& sensor_fusion,
-      const array<vector<double>, 5>& map_waypoints)
+array<vector<double>, 2> PathPlanner::plan(const SignalState& state)
 {
 
   // check current lane and init if needed
   if(currentLane == 0) {
 
     // calculate lane from d
-    double d = localizationData.at(LOCAL_CAR_D);
+    double d = state.localizationData.at(SignalState::LOCAL_CAR_D);
 
     if(d <= -16.) currentLane = -4;
     else if(d <= -8.) currentLane = -3;
     else if(d <= -4.) currentLane = -2;
     else if(d <= -0.) currentLane = -1;
-    else if(d >= 16.) currentLane = 4;
-    else if(d >= 8.) currentLane = 3;
-    else if(d >= 4.) currentLane = 2;
-    else if(d >= 0.) currentLane = 1;
+    else if(d >= 16.) currentLane = 3;
+    else if(d >= 8.) currentLane = 2;
+    else if(d >= 4.) currentLane = 1;
+    else if(d >= 0.) currentLane = 0;
+
+    targetLane = currentLane;
   }
 
   // for now, generate single trajectory
@@ -31,17 +30,16 @@ array<vector<double>, 2> PathPlanner::plan(const array<double, 6>& localizationD
 
   switch(currentType) {
     case GEN_JMT:
-      next_vals = std::move(trjGenerator.generateJMT());
+      next_vals = std::move(trjGenerator.generateJMT(targetLane, referenceVelocity, state));
       break;
 
     case GEN_SPLINE:
-      next_vals = std::move(trjGenerator.generateSpline());
+      next_vals = std::move(trjGenerator.generateSpline(targetLane, referenceVelocity, state));
       break;
 
     case GEN_SIMPLE:
     default:
-      next_vals = std::move(trjGenerator.generateSimple(referenceVelocity,
-        currentLane, localizationData, map_waypoints));
+      next_vals = std::move(trjGenerator.generateSimple(targetLane, referenceVelocity, state));
       break;
   }
 

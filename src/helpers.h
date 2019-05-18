@@ -4,10 +4,86 @@
 #include <math.h>
 #include <string>
 #include <vector>
+#include <array>
 
 // for convenience
 using std::string;
 using std::vector;
+using std::array;
+
+struct SignalState {
+
+  enum LocalizationIndex {
+    LOCAL_CAR_X = 0,
+    LOCAL_CAR_Y,
+    LOCAL_CAR_S,
+    LOCAL_CAR_D,
+    LOCAL_CAR_YAW,
+    LOCAL_CAR_SPEED
+  };
+
+  enum EndPathIndex {
+    END_PATH_S = 0,
+    END_PATH_D
+  };
+
+  enum MapWaypointsIndex {
+    MWP_X,
+    MWP_Y,
+    MWP_S,
+    MWP_DX,
+    MWP_DY
+  };
+
+  SignalState(double car_x,
+              double car_y,
+              double car_s,
+              double car_d,
+              double car_yaw,
+              double car_speed,
+              const vector<double>& map_waypoints_x,
+              const vector<double>& map_waypoints_y,
+              const vector<double>& map_waypoints_s,
+              const vector<double>& map_waypoints_dx,
+              const vector<double>& map_waypoints_dy,
+              const vector<double>& prev_x,
+              const vector<double>& prev_y,
+              const double& end_path_s,
+              const double& end_path_d,
+              const vector<vector<double>>& sns_fus)
+      : prev_path_x(prev_x)
+      , prev_path_y(prev_y)
+      , sensor_fusion(sns_fus)
+  {
+      // pack localization data for path planner
+      localizationData.at(LOCAL_CAR_X) = car_x;
+      localizationData.at(LOCAL_CAR_Y) = car_y;
+      localizationData.at(LOCAL_CAR_S) = car_s;
+      localizationData.at(LOCAL_CAR_D) = car_d;
+      localizationData.at(LOCAL_CAR_YAW) = car_yaw;
+      localizationData.at(LOCAL_CAR_SPEED) = car_speed;
+
+      // pack map waypoints for path planner
+      map_waypoints.at(MWP_X) = map_waypoints_x;
+      map_waypoints.at(MWP_Y) = map_waypoints_y;
+      map_waypoints.at(MWP_S) = map_waypoints_s;
+      map_waypoints.at(MWP_DX) = map_waypoints_dx;
+      map_waypoints.at(MWP_DY) = map_waypoints_dy;
+
+      // pack end path data for path planner
+      end_path_Frenet.at(END_PATH_S) = end_path_s;
+      end_path_Frenet.at(END_PATH_D) = end_path_d;
+
+  }
+
+  array<double, 6> localizationData;
+  const vector<double>& prev_path_x;
+  const vector<double>& prev_path_y;
+  array<double, 2> end_path_Frenet;
+  const vector<vector<double>>& sensor_fusion;
+  array<vector<double>, 5> map_waypoints;
+};
+
 
 class Helpers {
 public:
