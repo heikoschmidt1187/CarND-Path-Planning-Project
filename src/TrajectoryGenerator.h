@@ -5,7 +5,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include <array>
 #include "spline.h"
-#include "helpers.h"
+//#include "helpers.h"
 
 using namespace std;
 

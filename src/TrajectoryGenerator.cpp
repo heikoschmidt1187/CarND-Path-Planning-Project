@@ -1,5 +1,6 @@
 #include "TrajectoryGenerator.h"
 #include "PathPlanner.h"
+#include "helpers.h"
 
 array<vector<double>, 2> TrajectoryGenerator::generateJMT()
 {
@@ -26,7 +27,7 @@ array<vector<double>, 2> TrajectoryGenerator::generateSimple(int lane,
     double next_s = localizationData.at(PathPlanner::LocalizationIndex::LOCAL_CAR_S) + (i + 1) * increment_per_step;
     double next_d = (2 + (lane - 1) * 4);
 
-    vector<double> xy = getXY(next_s, next_d, map_waypoints.at(PathPlanner::MapWaypointsIndex::MWP_S), map_waypoints.at(PathPlanner::MapWaypointsIndex::MWP_X),
+    vector<double> xy = Helpers::getXY(next_s, next_d, map_waypoints.at(PathPlanner::MapWaypointsIndex::MWP_S), map_waypoints.at(PathPlanner::MapWaypointsIndex::MWP_X),
       map_waypoints.at(PathPlanner::MapWaypointsIndex::MWP_Y));
 
     next_vals.at(0).push_back(xy.at(0));

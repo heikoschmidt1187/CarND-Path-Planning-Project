@@ -7,7 +7,7 @@
 #include <utility>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
-//#include "helpers.h"
+#include "helpers.h"
 #include "json.hpp"
 #include "PathPlanner.h"
 
@@ -64,7 +64,7 @@ int main() {
     // The 2 signifies a websocket event
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
-      auto s = hasData(data);
+      auto s = Helpers::hasData(data);
 
       if (s != "") {
         auto j = json::parse(s);
