@@ -5,13 +5,13 @@
 
 array<vector<double>, 2> PathPlanner::plan(const SignalState& state, const Road& road)
 {
-
-  // get the current lane
-  currentLane = Helpers::get_lane(road, state.egoState.d);
+  int target_lane;
+  double target_velocity;
 
   predictor.predict(state, road);
+  behavior.calc(state, road, target_lane, target_velocity);
 
   // for now, generate single trajectory
   // variable for returning the next (x, y) values
-  return std::move(trjGenerator.generateSpline(currentLane, road.lane_speed_limit.at(currentLane), state));
+  return std::move(trjGenerator.generateSpline(target_lane, target_velocity, state));
 }

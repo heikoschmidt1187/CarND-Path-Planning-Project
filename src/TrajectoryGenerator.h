@@ -11,6 +11,8 @@ using namespace std;
 
 struct SignalState;
 
+#define LOOKAHEAD_POINTS 50
+
 class TrajectoryGenerator {
 public:
 

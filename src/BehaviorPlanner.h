@@ -1,6 +1,10 @@
 #ifndef _BEHAVIORPLANNER_H_
 #define _BEHAVIORPLANNER_H_
 
+#include "helpers.h"
+
+#include <vector>
+#include <tuple>
 
 class BehaviorPlanner {
 public:
@@ -8,7 +12,7 @@ public:
     : currentFsmState(FSM_KEEP_LANE)
   {}
 
-  void plan();
+  void calc(const SignalState& state, const Road& road, int& target_lane, double& target_velocity);
 
 private:
   enum FsmState {

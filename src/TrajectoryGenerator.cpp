@@ -7,11 +7,15 @@ void TrajectoryGenerator::updateCurrentBaseVelocity(double ref_velocity)
   // avoid too much change in jerk, so change the base velocity slowly (10m/s^2 acc/dev, 10m/s^3 jerk)
   // TODO: calculate
 
+  /*
   if(currentBaseVelocity < ref_velocity) {
     currentBaseVelocity += 0.1;
   } else {
     currentBaseVelocity -= 0.1;
   }
+  */
+
+  currentBaseVelocity = ref_velocity;
 }
 
 array<vector<double>, 2> TrajectoryGenerator::generateJMT(const int& lane, const double& ref_velocity, const SignalState& state)
@@ -121,7 +125,7 @@ array<vector<double>, 2> TrajectoryGenerator::generateSpline(const int& lane, co
     double x_add_on = 0;
 
     // fill up the rest of the path up to 50 points in total
-    for(size_t i = 0; i <= (50 - prev_size); ++i) {
+    for(size_t i = 0; i <= (LOOKAHEAD_POINTS - prev_size); ++i) {
 
       // calculate needed segments (ref_velocity in mph)
       double N = (target_dist / (.02 * currentBaseVelocity));
@@ -160,7 +164,7 @@ array<vector<double>, 2> TrajectoryGenerator::generateSimple(const int& lane, co
   double increment_per_step = ((currentBaseVelocity * 1.6) / 3.6) * 0.02;
 
   // we only want 50 points, so keep track of the last points
-  for(int i = 0; i < 50; i++) {
+  for(int i = 0; i < LOOKAHEAD_POINTS; i++) {
     double next_s = state.egoState.s + (i + 1) * increment_per_step;
     double next_d = (2 + lane * 4);
 
