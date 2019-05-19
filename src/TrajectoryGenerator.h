@@ -14,11 +14,18 @@ struct SignalState;
 class TrajectoryGenerator {
 public:
 
-  TrajectoryGenerator() {}
+  TrajectoryGenerator()
+    : currentBaseVelocity(0.)
+  {}
 
   array<vector<double>, 2> generateJMT(const int& lane, const double& ref_velocity, const SignalState& state);
   array<vector<double>, 2> generateSpline(const int& lane, const double& ref_velocity, const SignalState& state);
   array<vector<double>, 2> generateSimple(const int& lane, const double& ref_velocity, const SignalState& state);
+
+private:
+  double currentBaseVelocity;
+
+  void updateCurrentBaseVelocity(double ref_velocity);
 };
 
 #endif // _TRAJECTORY_H_

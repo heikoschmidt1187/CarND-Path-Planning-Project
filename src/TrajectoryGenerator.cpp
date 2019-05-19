@@ -2,14 +2,33 @@
 
 #include <iostream>
 
+void TrajectoryGenerator::updateCurrentBaseVelocity(double ref_velocity)
+{
+  // avoid too much change in jerk, so change the base velocity slowly (10m/s^2 acc/dev, 10m/s^3 jerk)
+  // TODO: calculate
+
+  if(currentBaseVelocity < ref_velocity) {
+    currentBaseVelocity += .224;
+  } else {
+    currentBaseVelocity -= .224;
+  }
+}
 
 array<vector<double>, 2> TrajectoryGenerator::generateJMT(const int& lane, const double& ref_velocity, const SignalState& state)
 {
+  // set the velocity for this calculation cycle
+  // TODO: take care when generating multiple trajectories in one cycle! - maybe better in PathPlanner.plan() ?
+  updateCurrentBaseVelocity(ref_velocity);
+
   return array<vector<double>, 2>();
 }
 
 array<vector<double>, 2> TrajectoryGenerator::generateSpline(const int& lane, const double& ref_velocity, const SignalState& state)
 {
+  // set the velocity for this calculation cycle
+  // TODO: take care when generating multiple trajectories in one cycle! - maybe better in PathPlanner.plan() ?
+  updateCurrentBaseVelocity(ref_velocity);
+
   // create list of widely spread points to create spline from
   vector<double> ptsx, ptsy;
 
@@ -105,7 +124,7 @@ array<vector<double>, 2> TrajectoryGenerator::generateSpline(const int& lane, co
     for(size_t i = 0; i <= (50 - prev_size); ++i) {
 
       // calculate needed segments (ref_velocity in mph)
-      double N = (target_dist / (.02 * ref_velocity / 2.24));
+      double N = (target_dist / (.02 * currentBaseVelocity / 2.24));
       double x_point = x_add_on + (target_x) / N;
       double y_point = s(x_point);
 
@@ -130,11 +149,15 @@ array<vector<double>, 2> TrajectoryGenerator::generateSpline(const int& lane, co
 
 array<vector<double>, 2> TrajectoryGenerator::generateSimple(const int& lane, const double& ref_velocity, const SignalState& state)
 {
+  // set the velocity for this calculation cycle
+  // TODO: take care when generating multiple trajectories in one cycle! - maybe better in PathPlanner.plan() ?
+  updateCurrentBaseVelocity(ref_velocity);
+
   // array to hold next values
   array<vector<double>, 2> next_vals;
 
   // simple trajectory just moves forward with 50 steps fixed for testing
-  double increment_per_step = ((ref_velocity * 1.6) / 3.6) * 0.02;
+  double increment_per_step = ((currentBaseVelocity * 1.6) / 3.6) * 0.02;
 
   // we only want 50 points, so keep track of the last points
   for(int i = 0; i < 50; i++) {
