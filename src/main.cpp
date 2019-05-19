@@ -54,9 +54,22 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+  // global algorithm data
+  double global_speed_limit_mph = 49.5;
+  double speed_limit_mps = Helpers::milesPerHourToMetersPerSecond(global_speed_limit_mph);
+  double lanes = 3;
+  double lane_width_m = 4;
+
+  Road highway(lanes,
+    {lane_width_m, lane_width_m, lane_width_m},
+    {speed_limit_mps, speed_limit_mps, speed_limit_mps});
+  Car ego;
+
+  // create path planner with the desired planner type
+  PathPlanner planner;
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy]
+               &map_waypoints_dx,&map_waypoints_dy, &ego, &highway, &planner]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -75,16 +88,17 @@ int main() {
           // j[1] is the data JSON object
 
           // Main car's localization Data
-          double car_x = j[1]["x"];
-          double car_y = j[1]["y"];
-          double car_s = j[1]["s"];
-          double car_d = j[1]["d"];
-          double car_yaw = j[1]["yaw"];
-          double car_speed = j[1]["speed"];
+          ego.x = j[1]["x"];
+          ego.y = j[1]["y"];
+          ego.s = j[1]["s"];
+          ego.d = j[1]["d"];
+          ego.yaw = j[1]["yaw"];
+          ego.speed = Helpers::milesPerHourToMetersPerSecond(j[1]["speed"]);
 
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
           auto previous_path_y = j[1]["previous_path_y"];
+
           // Previous path's end s and d values
           double end_path_s = j[1]["end_path_s"];
           double end_path_d = j[1]["end_path_d"];
@@ -95,21 +109,15 @@ int main() {
 
           json msgJson;
 
-          // create path planner with the desired planner type
-          static PathPlanner planner;
-
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          SignalState state(car_x, car_y, car_s, car_d, car_yaw, car_speed,
-            map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy,
+          SignalState state(ego, map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy,
             previous_path_x, previous_path_y, end_path_s, end_path_d, sensor_fusion);
 
-          // set generator type
-          planner.setGeneratorType(PathPlanner::GEN_SPLINE);
 
-          auto next_vals = std::move(planner.plan(state));
+          auto next_vals = std::move(planner.plan(state, highway));
 
           msgJson["next_x"] = next_vals.at(0);
           msgJson["next_y"] = next_vals.at(1);

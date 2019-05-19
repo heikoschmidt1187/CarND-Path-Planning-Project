@@ -3,6 +3,7 @@
 
 #include "TrajectoryGenerator.h"
 #include "Predictor.h"
+#include "BehaviorPlanner.h"
 
 #include <vector>
 #include <array>
@@ -11,36 +12,24 @@ using namespace std;
 
 class PathPlanner {
 public:
-  enum GeneratorType {
-    GEN_SPLINE,
-    GEN_JMT,
-    GEN_SIMPLE
-  };
-
   PathPlanner()
     : currentLane(0)
     , targetLane(0)
     , referenceVelocity(49.5)
-    , currentType(GEN_SIMPLE)
   {}
 
-  array<vector<double>, 2> plan(const SignalState& state);
-
-  GeneratorType getGeneratorType()
-  { return currentType; }
-
-  void setGeneratorType(GeneratorType type)
-  { currentType = type; }
+  array<vector<double>, 2> plan(const SignalState& state, const Road& road);
 
 private:
 
   TrajectoryGenerator trjGenerator;
+
   Predictor predictor;
+  BehaviorPlanner behavior;
 
   int currentLane;
   int targetLane;
   double referenceVelocity;
-  GeneratorType currentType;
 };
 
 #endif //__PATHPLANNER_H_

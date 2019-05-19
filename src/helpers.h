@@ -5,22 +5,59 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <iostream>
 
 // for convenience
 using std::string;
 using std::vector;
 using std::array;
 
-struct SignalState {
+struct Car {
+  double x;
+  double y;
+  double s;
+  double d;
+  double yaw;
+  double speed;
 
-  enum LocalizationIndex {
-    LOCAL_CAR_X = 0,
-    LOCAL_CAR_Y,
-    LOCAL_CAR_S,
-    LOCAL_CAR_D,
-    LOCAL_CAR_YAW,
-    LOCAL_CAR_SPEED
-  };
+  Car()
+    : x(0.), y(0.), s(0.), d(0.), yaw(0.), speed(0.)
+  {}
+
+  Car(double X, double Y, double S, double D, double Yaw, double Speed)
+    : x(X), y(Y), s(S), d(D), yaw(Yaw), speed(Speed)
+  {}
+};
+
+struct Road {
+  int number_of_lanes;
+  double total_road_width;
+  vector<double> lane_width;
+  vector<double> lane_speed_limit;
+
+  Road(int lane_count, vector<double> widths, vector<double> speeds)
+    : number_of_lanes(lane_count)
+  {
+    lane_width.clear();
+    lane_speed_limit.clear();
+    total_road_width = 0.;
+
+    if(widths.size() != speeds.size()) {
+      std::cout << "Road data init failure" << std::endl;
+      exit(-1);
+    }
+
+    for(size_t i = 0; i < widths.size(); ++i) {
+      lane_width.push_back(widths.at(i));
+      total_road_width += widths.at(i);
+
+      lane_speed_limit.push_back(speeds.at(i));
+    }
+
+  }
+};
+
+struct SignalState {
 
   enum EndPathIndex {
     END_PATH_S = 0,
@@ -35,12 +72,7 @@ struct SignalState {
     MWP_DY
   };
 
-  SignalState(double car_x,
-              double car_y,
-              double car_s,
-              double car_d,
-              double car_yaw,
-              double car_speed,
+  SignalState(const Car& ego,
               const vector<double>& map_waypoints_x,
               const vector<double>& map_waypoints_y,
               const vector<double>& map_waypoints_s,
@@ -51,17 +83,11 @@ struct SignalState {
               const double& end_path_s,
               const double& end_path_d,
               const vector<vector<double>>& sns_fus)
-      : prev_path_x(prev_x)
+      : egoState(ego)
+      , prev_path_x(prev_x)
       , prev_path_y(prev_y)
       , sensor_fusion(sns_fus)
   {
-      // pack localization data for path planner
-      localizationData.at(LOCAL_CAR_X) = car_x;
-      localizationData.at(LOCAL_CAR_Y) = car_y;
-      localizationData.at(LOCAL_CAR_S) = car_s;
-      localizationData.at(LOCAL_CAR_D) = car_d;
-      localizationData.at(LOCAL_CAR_YAW) = car_yaw;
-      localizationData.at(LOCAL_CAR_SPEED) = car_speed;
 
       // pack map waypoints for path planner
       map_waypoints.at(MWP_X) = map_waypoints_x;
@@ -73,10 +99,9 @@ struct SignalState {
       // pack end path data for path planner
       end_path_Frenet.at(END_PATH_S) = end_path_s;
       end_path_Frenet.at(END_PATH_D) = end_path_d;
-
   }
 
-  array<double, 6> localizationData;
+  Car egoState;
   const vector<double>& prev_path_x;
   const vector<double>& prev_path_y;
   array<double, 2> end_path_Frenet;
@@ -231,6 +256,38 @@ public:
 
     return {x,y};
   }
+
+  static int get_lane(const Road& road, double d) {
+
+    int lane = 0;
+
+    // check for car off the own lane
+    if(d < 0) {
+      std::cout << "Wrong road side!" << std::endl;
+    } else if(d > road.total_road_width) {
+      std::cout << "Car off the road!" << std::endl;
+      lane = (road.number_of_lanes - 1);
+    }
+
+    // calculate according to lane count and width
+    for(size_t i = 0; i < road.number_of_lanes; ++i) {
+
+      double width_until_lane = 0.;
+
+      for(size_t j = 0; j < i; j++)
+        width_until_lane += road.lane_width.at(j);
+
+      if(d < (width_until_lane + road.lane_width.at(i))) {
+        lane = i;
+        break;
+      }
+    }
+
+    return lane;
+  }
+
+  inline static double milesPerHourToMetersPerSecond(double milesPerHour)
+  { return 0.4470 * milesPerHour; }
 };
 
 #endif  // HELPERS_H
