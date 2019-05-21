@@ -52,9 +52,9 @@ void BehaviorPlanner::calc(const SignalState& state, const Road& road, int& targ
               << std::endl;
 
     // slow down current velocity
-    target_velocity = std::max(1., state.egoState.speed - 1);
+    target_velocity = std::max(1., state.egoState.speed - 0.2);
   } else {
-    target_velocity = std::min(road.lane_speed_limit.at(current_lane), state.egoState.speed + 1);
+    target_velocity = std::min(road.lane_speed_limit.at(current_lane), state.egoState.speed + 4);
   }
 
   std::cout << "Target velocity: " << target_velocity << std::endl;

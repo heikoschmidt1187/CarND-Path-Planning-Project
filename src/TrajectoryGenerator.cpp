@@ -33,19 +33,26 @@ array<vector<double>, 2> TrajectoryGenerator::generateSpline(const int& lane, co
   // TODO: take care when generating multiple trajectories in one cycle! - maybe better in PathPlanner.plan() ?
   updateCurrentBaseVelocity(ref_velocity);
 
+  if(state.egoState.speed < 22.2) {
+    currentBaseVelocity = state.egoState.speed + 1.6;
+  } else {
+    currentBaseVelocity = 22.2;
+  }
+
   // create list of widely spread points to create spline from
   vector<double> ptsx, ptsy;
 
   // reference state
   double ref_x = state.egoState.x;
   double ref_y = state.egoState.y;
-  double ref_yaw = state.egoState.yaw;
+  double ref_yaw = Helpers::deg2rad(state.egoState.yaw);
 
   // previous path size
   size_t prev_size = state.prev_path_x.size();
 
   // if previous path is nearly empty, use the current car posisiton as reference
   if(prev_size < 2) {
+
     // calculate a pseudo-previous car point according to the current position and yaw angle
     double prev_car_x = ref_x - cos(ref_yaw);
     double prev_car_y = ref_y - sin(ref_yaw);
@@ -75,14 +82,18 @@ array<vector<double>, 2> TrajectoryGenerator::generateSpline(const int& lane, co
   }
 
   // calculate three sparse wide range waypoints (30m, 60m, 90m) in Frenet as base for the spline calculation
-  vector<double> next_wp0 = Helpers::getXY(state.egoState.s + 30, (2 + 4 * lane),
+  vector<double> next_wp0, next_wp1, next_wp2;
+
+  next_wp0 = Helpers::getXY(state.egoState.s + 50, (2 + 4 * lane),
     state.map_waypoints.at(SignalState::MWP_S), state.map_waypoints.at(SignalState::MWP_X), state.map_waypoints.at(SignalState::MWP_Y));
 
-  vector<double> next_wp1 = Helpers::getXY(state.egoState.s + 60, (2 + 4 * lane),
+  next_wp1 = Helpers::getXY(state.egoState.s + 100, (2 + 4 * lane),
     state.map_waypoints.at(SignalState::MWP_S), state.map_waypoints.at(SignalState::MWP_X), state.map_waypoints.at(SignalState::MWP_Y));
 
-  vector<double> next_wp2 = Helpers::getXY(state.egoState.s + 90, (2 + 4 * lane),
+  next_wp2 = Helpers::getXY(state.egoState.s + 150, (2 + 4 * lane),
     state.map_waypoints.at(SignalState::MWP_S), state.map_waypoints.at(SignalState::MWP_X), state.map_waypoints.at(SignalState::MWP_Y));
+
+
 
     ptsx.push_back(next_wp0.at(0));
     ptsx.push_back(next_wp1.at(0));
@@ -104,6 +115,13 @@ array<vector<double>, 2> TrajectoryGenerator::generateSpline(const int& lane, co
 
     // create a spline
     tk::spline s;
+
+    // debugging
+    std::cout << "*** points ***" << std::endl;
+    for(const auto& p : ptsx) {
+      std::cout << p << " ";
+    }
+    std::cout << std::endl;
 
     // set the spline points
     s.set_points(ptsx, ptsy);
