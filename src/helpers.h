@@ -7,111 +7,36 @@
 #include <array>
 #include <iostream>
 
+#include "spline.h"
+
 // for convenience
 using std::string;
 using std::vector;
 using std::array;
 
-struct Car {
-  double x;
-  double y;
-  double s;
-  double d;
-  double yaw;
-  double speed;
-
-  Car()
-    : x(0.), y(0.), s(0.), d(0.), yaw(0.), speed(0.)
-  {}
-
-  Car(double X, double Y, double S, double D, double Yaw, double Speed)
-    : x(X), y(Y), s(S), d(D), yaw(Yaw), speed(Speed)
-  {}
+struct map_spline {
+  tk::spline waypoint_spline_x;
+  tk::spline waypoint_spline_y;
+  tk::spline waypoint_spline_dx;
+  tk::spline waypoint_spline_dy;
 };
-
-struct Road {
-  int number_of_lanes;
-  double total_road_width;
-  vector<double> lane_width;
-  vector<double> lane_speed_limit;
-
-  Road(int lane_count, vector<double> widths, vector<double> speeds)
-    : number_of_lanes(lane_count)
-  {
-    lane_width.clear();
-    lane_speed_limit.clear();
-    total_road_width = 0.;
-
-    if(widths.size() != speeds.size()) {
-      std::cout << "Road data init failure" << std::endl;
-      exit(-1);
-    }
-
-    for(size_t i = 0; i < widths.size(); ++i) {
-      lane_width.push_back(widths.at(i));
-      total_road_width += widths.at(i);
-
-      lane_speed_limit.push_back(speeds.at(i));
-    }
-
-  }
-};
-
-struct SignalState {
-
-  enum EndPathIndex {
-    END_PATH_S = 0,
-    END_PATH_D
-  };
-
-  enum MapWaypointsIndex {
-    MWP_X,
-    MWP_Y,
-    MWP_S,
-    MWP_DX,
-    MWP_DY
-  };
-
-  SignalState(const Car& ego,
-              const vector<double>& map_waypoints_x,
-              const vector<double>& map_waypoints_y,
-              const vector<double>& map_waypoints_s,
-              const vector<double>& map_waypoints_dx,
-              const vector<double>& map_waypoints_dy,
-              const vector<double>& prev_x,
-              const vector<double>& prev_y,
-              const double& end_path_s,
-              const double& end_path_d,
-              const vector<vector<double>>& sns_fus)
-      : egoState(ego)
-      , prev_path_x(prev_x)
-      , prev_path_y(prev_y)
-      , sensor_fusion(sns_fus)
-  {
-
-      // pack map waypoints for path planner
-      map_waypoints.at(MWP_X) = map_waypoints_x;
-      map_waypoints.at(MWP_Y) = map_waypoints_y;
-      map_waypoints.at(MWP_S) = map_waypoints_s;
-      map_waypoints.at(MWP_DX) = map_waypoints_dx;
-      map_waypoints.at(MWP_DY) = map_waypoints_dy;
-
-      // pack end path data for path planner
-      end_path_Frenet.at(END_PATH_S) = end_path_s;
-      end_path_Frenet.at(END_PATH_D) = end_path_d;
-  }
-
-  Car egoState;
-  const vector<double>& prev_path_x;
-  const vector<double>& prev_path_y;
-  array<double, 2> end_path_Frenet;
-  const vector<vector<double>>& sensor_fusion;
-  array<vector<double>, 5> map_waypoints;
-};
-
 
 class Helpers {
 public:
+
+  struct VehicleState {
+
+    VehicleState(double pos, double vel, double acc)
+      : position(pos)
+      , velocity(vel)
+      , acceleration(acc)
+    {}
+
+    double position;
+    double velocity;
+    double acceleration;
+  };
+
   // Checks if the SocketIO event has JSON data.
   // If there is data the JSON object in string format will be returned,
   //   else the empty string "" will be returned.
@@ -257,33 +182,18 @@ public:
     return {x,y};
   }
 
-  static int get_lane(const Road& road, double d) {
+  static vector<double> getXY(double s, double d, const map_spline& spline)
+  {
+    // check calculation with spline
+    double waypoint_x = spline.waypoint_spline_x(s);
+    double waypoint_y = spline.waypoint_spline_y(s);
+    double waypoint_dx = spline.waypoint_spline_dx(s);
+    double waypoint_dy = spline.waypoint_spline_dy(s);
 
-    int lane = 0;
+    double x = waypoint_x + waypoint_dx * d;
+    double y = waypoint_y + waypoint_dy * d;
 
-    // check for car off the own lane
-    if(d < 0) {
-      std::cout << "Wrong road side!" << std::endl;
-    } else if(d > road.total_road_width) {
-      std::cout << "Car off the road!" << std::endl;
-      lane = (road.number_of_lanes - 1);
-    }
-
-    // calculate according to lane count and width
-    for(size_t i = 0; i < road.number_of_lanes; ++i) {
-
-      double width_until_lane = 0.;
-
-      for(size_t j = 0; j < i; j++)
-        width_until_lane += road.lane_width.at(j);
-
-      if(d < (width_until_lane + road.lane_width.at(i))) {
-        lane = i;
-        break;
-      }
-    }
-
-    return lane;
+    return {x, y};
   }
 
   inline static double milesPerHourToMetersPerSecond(double milesPerHour)

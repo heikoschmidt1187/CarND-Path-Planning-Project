@@ -9,7 +9,11 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
-#include "PathPlanner.h"
+
+#include "Car.h"
+#include "Trajectory.h"
+
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -54,22 +58,20 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  // global algorithm data
-  double global_speed_limit_mph = 49.5;
-  double speed_limit_mps = Helpers::milesPerHourToMetersPerSecond(global_speed_limit_mph);
-  double lanes = 3;
-  double lane_width_m = 4;
+  // push points to spline for later smooting lane
+  map_spline map_wp_spline;
 
-  Road highway(lanes,
-    {lane_width_m, lane_width_m, lane_width_m},
-    {speed_limit_mps, speed_limit_mps, speed_limit_mps});
-  Car ego;
+  map_wp_spline.waypoint_spline_x.set_points(map_waypoints_s, map_waypoints_x);
+  map_wp_spline.waypoint_spline_y.set_points(map_waypoints_s, map_waypoints_y);
+  map_wp_spline.waypoint_spline_dx.set_points(map_waypoints_s, map_waypoints_dx);
+  map_wp_spline.waypoint_spline_dy.set_points(map_waypoints_s, map_waypoints_dy);
 
-  // create path planner with the desired planner type
-  PathPlanner planner;
+
+  // object for ego car
+  Car ego(1337);
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy, &ego, &highway, &planner]
+               &map_waypoints_dx,&map_waypoints_dy, &ego, &map_wp_spline]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -88,12 +90,12 @@ int main() {
           // j[1] is the data JSON object
 
           // Main car's localization Data
-          ego.x = j[1]["x"];
-          ego.y = j[1]["y"];
-          ego.s = j[1]["s"];
-          ego.d = j[1]["d"];
-          ego.yaw = j[1]["yaw"];
-          ego.speed = Helpers::milesPerHourToMetersPerSecond(j[1]["speed"]);
+          double car_x = j[1]["x"];
+          double car_y = j[1]["y"];
+          double car_s = j[1]["s"];
+          double car_d = j[1]["d"];
+          double car_yaw = j[1]["yaw"];
+          double car_speed = Helpers::milesPerHourToMetersPerSecond(j[1]["speed"]);
 
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
@@ -114,14 +116,35 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          SignalState state(ego, map_waypoints_x, map_waypoints_y, map_waypoints_s, map_waypoints_dx, map_waypoints_dy,
-            previous_path_x, previous_path_y, end_path_s, end_path_d, sensor_fusion);
+          vector<double> next_x;
+          vector<double> next_y;
 
+          // update the ego car with current data
+          ego.setPosition(car_s, car_d);
+          ego.setSpeed(car_speed);
 
-          auto next_vals = std::move(planner.plan(state, highway));
+          // first attempt: let the car drive in lane while maintaining speed
+          if(previous_path_x.size() < 50) {
+            Trajectory::JMT jmt({car_s, car_speed, 0}, {car_s + (500*0.02*15), 15., 0}, 500 * 0.02);
 
-          msgJson["next_x"] = next_vals.at(0);
-          msgJson["next_y"] = next_vals.at(1);
+            for(int i = 0; i < 100; ++i) {
+              double s = jmt.get(i * 0.02);
+
+              //vector<double> xy = Helpers::getXY(s, 6, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              vector<double> xy = Helpers::getXY(s, 6, map_wp_spline);
+
+              next_x.push_back(xy.at(0));
+              next_y.push_back(xy.at(1));
+            }
+          } else {
+            for(size_t i = 0; i < previous_path_x.size(); ++i) {
+              next_x.push_back(previous_path_x.at(i));
+              next_y.push_back(previous_path_y.at(i));
+            }
+          }
+
+          msgJson["next_x"] = next_x;
+          msgJson["next_y"] = next_y;
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
