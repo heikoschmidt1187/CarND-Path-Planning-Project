@@ -10,9 +10,8 @@
 #include "helpers.h"
 #include "json.hpp"
 
-#include "Trajectory.h"
-
-#include "spline.h"
+#include "PathPlanner.h"
+#include "Car.h"
 
 // for convenience
 using nlohmann::json;
@@ -57,23 +56,15 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  // push points to spline for later smooting lane
-  tk::spline waypoint_spline_x;
-  tk::spline waypoint_spline_y;
-  tk::spline waypoint_spline_dx;
-  tk::spline waypoint_spline_dy;
+  // path planner object as entry point to algorithm
+  PathPlanner planner(map_waypoints_s, map_waypoints_x,
+    map_waypoints_y, map_waypoints_dx, map_waypoints_dy);
 
-  std::vector<double> prev_s;
-  std::vector<double> prev_d;
-
-  waypoint_spline_x.set_points(map_waypoints_s, map_waypoints_x);
-  waypoint_spline_y.set_points(map_waypoints_s, map_waypoints_y);
-  waypoint_spline_dx.set_points(map_waypoints_s, map_waypoints_dx);
-  waypoint_spline_dy.set_points(map_waypoints_s, map_waypoints_dy);
+  // own car Object
+  Car ego(1337);
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy, &waypoint_spline_x,
-               &waypoint_spline_y, &waypoint_spline_dx, &waypoint_spline_dy, &prev_s, &prev_d]
+               &map_waypoints_dx,&map_waypoints_dy, &ego, &planner]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -118,64 +109,16 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-          vector<double> next_x;
-          vector<double> next_y;
 
-          // first attempt: let the car drive in lane while maintaining speed
-          static int lane = 1;
+          // update own car
+          ego.update(car_s, car_d, car_speed);
 
-          if(previous_path_x.size() < 10) {
+          // plan!
+          std::vector<std::vector<double>> xy = planner.update(ego,
+            previous_path_x, previous_path_y);
 
-            double s;
-            double d;
-
-            if(previous_path_x.size() > 0) {
-
-              for(size_t i = 0; i < previous_path_x.size(); ++i) {
-                next_x.push_back(previous_path_x.at(i));
-                next_y.push_back(previous_path_y.at(i));
-              }
-
-              prev_s.erase(prev_s.begin(), prev_s.begin() + prev_s.size() - previous_path_x.size());
-              prev_d.erase(prev_d.begin(), prev_d.begin() + prev_d.size() - previous_path_y.size());
-
-              s = prev_s.back();
-              d = prev_d.back();
-            }
-            else {
-              prev_s.clear();
-              prev_d.clear();
-              s = car_s;
-              d = car_d;
-            }
-
-            // increase speed by 1m/s/s
-            double target_speed = std::min(20., car_speed + 5);
-            Trajectory::JMT jmt({s, car_speed, 0}, {s + 2 * target_speed, target_speed, 0}, 2);
-            Trajectory::JMT jmt2({d, 0, 0}, {(2. + lane * 4.), 0, 0}, 2);
-
-            for(int i = 1; i < (50 - previous_path_x.size()); ++i) {
-              double s = jmt.get(i * 0.02);
-              double d = jmt2.get(i * 0.02);
-
-              //vector<double> xy = Helpers::getXY(s, 6, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-              prev_s.push_back(s);
-              prev_d.push_back(d);
-              vector<double> xy = Helpers::getXY(s, d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
-
-              next_x.push_back(xy.at(0));
-              next_y.push_back(xy.at(1));
-            }
-
-          } else {
-            for(size_t i = 0; i < previous_path_x.size(); ++i) {
-              next_x.push_back(previous_path_x.at(i));
-              next_y.push_back(previous_path_y.at(i));
-            }
-          }
-
-          msgJson["next_x"] = next_x;
-          msgJson["next_y"] = next_y;
+          msgJson["next_x"] = xy.at(0);
+          msgJson["next_y"] = xy.at(1);
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 

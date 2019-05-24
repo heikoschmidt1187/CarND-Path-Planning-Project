@@ -17,20 +17,6 @@ using std::array;
 class Helpers {
 public:
 
-
-  struct VehicleState {
-
-    VehicleState(double pos, double vel, double acc)
-      : position(pos)
-      , velocity(vel)
-      , acceleration(acc)
-    {}
-
-    double position;
-    double velocity;
-    double acceleration;
-  };
-
   // Checks if the SocketIO event has JSON data.
   // If there is data the JSON object in string format will be returned,
   //   else the empty string "" will be returned.

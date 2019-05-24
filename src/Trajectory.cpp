@@ -4,7 +4,7 @@
 
 namespace Trajectory {
 
-JMT::JMT(const Helpers::VehicleState& start, const Helpers::VehicleState& end, const double T)
+JMT::JMT(const Car::State& start, const Car::State& end, const double T)
 {
   // pre-calculate powers of T to save time
   const double T2 = T * T;

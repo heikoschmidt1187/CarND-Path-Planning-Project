@@ -4,13 +4,13 @@
 #include "Eigen-3.3/Eigen/Dense"
 #include <vector>
 
-#include "helpers.h"
+#include "Car.h"
 
 namespace Trajectory {
 
 class JMT {
 public:
-  JMT(const Helpers::VehicleState& start, const Helpers::VehicleState& end, const double T);
+  JMT(const Car::State& start, const Car::State& end, const double T);
   double get(const double t);
 
 private:
