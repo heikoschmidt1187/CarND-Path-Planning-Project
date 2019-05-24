@@ -14,15 +14,9 @@ using std::string;
 using std::vector;
 using std::array;
 
-struct map_spline {
-  tk::spline waypoint_spline_x;
-  tk::spline waypoint_spline_y;
-  tk::spline waypoint_spline_dx;
-  tk::spline waypoint_spline_dy;
-};
-
 class Helpers {
 public:
+
 
   struct VehicleState {
 
@@ -182,13 +176,14 @@ public:
     return {x,y};
   }
 
-  static vector<double> getXY(double s, double d, const map_spline& spline)
+  static vector<double> getXY(double s, double d, const tk::spline& waypoint_spline_x, const tk::spline& waypoint_spline_y,
+    const tk::spline& waypoint_spline_dx, const tk::spline& waypoint_spline_dy)
   {
     // check calculation with spline
-    double waypoint_x = spline.waypoint_spline_x(s);
-    double waypoint_y = spline.waypoint_spline_y(s);
-    double waypoint_dx = spline.waypoint_spline_dx(s);
-    double waypoint_dy = spline.waypoint_spline_dy(s);
+    double waypoint_x = waypoint_spline_x(s);
+    double waypoint_y = waypoint_spline_y(s);
+    double waypoint_dx = waypoint_spline_dx(s);
+    double waypoint_dy = waypoint_spline_dy(s);
 
     double x = waypoint_x + waypoint_dx * d;
     double y = waypoint_y + waypoint_dy * d;

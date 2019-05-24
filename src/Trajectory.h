@@ -16,7 +16,6 @@ public:
 private:
   Eigen::VectorXd c;
 };
-
 }
 
 #endif /* TRAJECTORYGENERATOR_H_ */

@@ -10,7 +10,6 @@
 #include "helpers.h"
 #include "json.hpp"
 
-#include "Car.h"
 #include "Trajectory.h"
 
 #include "spline.h"
@@ -59,19 +58,22 @@ int main() {
   }
 
   // push points to spline for later smooting lane
-  map_spline map_wp_spline;
+  tk::spline waypoint_spline_x;
+  tk::spline waypoint_spline_y;
+  tk::spline waypoint_spline_dx;
+  tk::spline waypoint_spline_dy;
 
-  map_wp_spline.waypoint_spline_x.set_points(map_waypoints_s, map_waypoints_x);
-  map_wp_spline.waypoint_spline_y.set_points(map_waypoints_s, map_waypoints_y);
-  map_wp_spline.waypoint_spline_dx.set_points(map_waypoints_s, map_waypoints_dx);
-  map_wp_spline.waypoint_spline_dy.set_points(map_waypoints_s, map_waypoints_dy);
+  std::vector<double> prev_s;
+  std::vector<double> prev_d;
 
-
-  // object for ego car
-  Car ego(1337);
+  waypoint_spline_x.set_points(map_waypoints_s, map_waypoints_x);
+  waypoint_spline_y.set_points(map_waypoints_s, map_waypoints_y);
+  waypoint_spline_dx.set_points(map_waypoints_s, map_waypoints_dx);
+  waypoint_spline_dy.set_points(map_waypoints_s, map_waypoints_dy);
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy, &ego, &map_wp_spline]
+               &map_waypoints_dx,&map_waypoints_dy, &waypoint_spline_x,
+               &waypoint_spline_y, &waypoint_spline_dx, &waypoint_spline_dy, &prev_s, &prev_d]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -119,23 +121,52 @@ int main() {
           vector<double> next_x;
           vector<double> next_y;
 
-          // update the ego car with current data
-          ego.setPosition(car_s, car_d);
-          ego.setSpeed(car_speed);
-
           // first attempt: let the car drive in lane while maintaining speed
-          if(previous_path_x.size() < 50) {
-            Trajectory::JMT jmt({car_s, car_speed, 0}, {car_s + (500*0.02*15), 15., 0}, 500 * 0.02);
+          static int lane = 1;
 
-            for(int i = 0; i < 100; ++i) {
+          if(previous_path_x.size() < 10) {
+
+            double s;
+            double d;
+
+            if(previous_path_x.size() > 0) {
+
+              for(size_t i = 0; i < previous_path_x.size(); ++i) {
+                next_x.push_back(previous_path_x.at(i));
+                next_y.push_back(previous_path_y.at(i));
+              }
+
+              prev_s.erase(prev_s.begin(), prev_s.begin() + prev_s.size() - previous_path_x.size());
+              prev_d.erase(prev_d.begin(), prev_d.begin() + prev_d.size() - previous_path_y.size());
+
+              s = prev_s.back();
+              d = prev_d.back();
+            }
+            else {
+              prev_s.clear();
+              prev_d.clear();
+              s = car_s;
+              d = car_d;
+            }
+
+            // increase speed by 1m/s/s
+            double target_speed = std::min(20., car_speed + 5);
+            Trajectory::JMT jmt({s, car_speed, 0}, {s + 2 * target_speed, target_speed, 0}, 2);
+            Trajectory::JMT jmt2({d, 0, 0}, {(2. + lane * 4.), 0, 0}, 2);
+
+            for(int i = 1; i < (50 - previous_path_x.size()); ++i) {
               double s = jmt.get(i * 0.02);
+              double d = jmt2.get(i * 0.02);
 
               //vector<double> xy = Helpers::getXY(s, 6, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-              vector<double> xy = Helpers::getXY(s, 6, map_wp_spline);
+              prev_s.push_back(s);
+              prev_d.push_back(d);
+              vector<double> xy = Helpers::getXY(s, d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
 
               next_x.push_back(xy.at(0));
               next_y.push_back(xy.at(1));
             }
+
           } else {
             for(size_t i = 0; i < previous_path_x.size(); ++i) {
               next_x.push_back(previous_path_x.at(i));
