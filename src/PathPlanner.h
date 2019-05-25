@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "spline.h"
-#include "Trajectory.h"
+#include "TrajectoryHandler.h"
 #include "Car.h"
 
 class PathPlanner {
@@ -48,6 +48,8 @@ private:
   tk::spline waypoint_spline_dy;
 
   PlannerState current_state;
+
+  TrajectoryHandler trajectory_handler;
 };
 
 #endif /* PATHPLANNER_H_ */

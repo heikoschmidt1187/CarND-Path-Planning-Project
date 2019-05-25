@@ -36,20 +36,21 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     current_state.lane = getLane(ego.getD());
   }
 
+  // update the previous s and d values according to the points not driven by
+  // the simulator in cycle
+  previous_path_s.erase(previous_path_s.begin(), previous_path_s.begin()
+    + previous_path_s.size() - previous_path_x.size());
+
+  previous_path_d.erase(previous_path_d.begin(), previous_path_d.begin()
+    + previous_path_d.size() - previous_path_y.size());
 
   // first attempt: let the car drive in lane while maintaining speed
   if(previous_path_x.size() < 10) {
-    // update the previous s and d values according to the points not driven by
-    // the simulator in cycle
-    previous_path_s.erase(previous_path_s.begin(), previous_path_s.begin()
-      + previous_path_s.size() - previous_path_x.size());
-
-    previous_path_d.erase(previous_path_d.begin(), previous_path_d.begin()
-      + previous_path_d.size() - previous_path_y.size());
 
     double s;
     double d;
 
+    // reuse previous path and use last s/d as base for new trajectory calculation
     if(previous_path_x.size() > 0) {
 
       for(size_t i = 0; i < previous_path_x.size(); ++i) {
@@ -71,12 +72,14 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     double target_speed = std::min(static_cast<double>(k_speed_limit - k_speed_buffer),
       ego.getSpeed() + 5);
 
-    Trajectory::JMT jmt({s, ego.getSpeed(), 0}, {s + 2 * target_speed, target_speed, 0}, 2);
-    Trajectory::JMT jmt2({d, 0, 0}, {(2. + current_state.lane * 4.), 0, 0}, 2);
+    auto trajectory = trajectory_handler.GenerateTrajectory({s, ego.getSpeed(), 0},
+      {d, 0, 0}, {s + 2 * target_speed, target_speed, 0}, {2. + current_state.lane * 4, 0, 0},
+      2);
+
 
     for(int i = 1; i < (50 - previous_path_x.size()); ++i) {
-      double s = jmt.get(i * 0.02);
-      double d = jmt2.get(i * 0.02);
+      double s = TrajectoryHandler::getJmtPos(trajectory.c_s, i * 0.02);
+      double d = TrajectoryHandler::getJmtPos(trajectory.c_d, i * 0.02);
 
       //vector<double> xy = Helpers::getXY(s, 6, map_waypoints_s, map_waypoints_x, map_waypoints_y);
       previous_path_s.push_back(s);
@@ -93,9 +96,6 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
       next_y.push_back(previous_path_y.at(i));
     }
   }
-
-
-
 
   return {next_x, next_y};
 }

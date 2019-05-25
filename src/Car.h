@@ -1,44 +1,43 @@
 #ifndef CAR_H_
 #define CAR_H_
 
+#include "Eigen-3.3/Eigen/Dense"
+#include <vector>
+
 class Car {
 public:
+  struct Trajectory {
+    Eigen::VectorXd c_s;    // trajectory s coefficients
+    Eigen::VectorXd c_d;    // trajectory d coefficients
+    double t;               // trajectory time
+  };
+
   struct State {
-    double position;
-    double velocity;
-    double acceleration;
+    double position;        // car position in s or d
+    double velocity;        // car velocity in s or d
+    double acceleration;    // car acceleration in s or d
   };
 
 public:
-  Car()
-    : id(-1), s(0.), d(0.), speed(0.)
-  {}
+  // C'tors for Car class
+  Car();
+  Car(int carId);
+  Car(int carId, double S, double D, double Speed);
 
-  Car(int carId)
-    : id(carId), s(0.), d(0.), speed(0.)
-  {}
+  // updates the car's state
+  void update(double S, double D, double Speed);
 
-  Car(int carId, double S, double D, double Speed)
-    : id(carId), s(S), d(D), speed(Speed)
-  {}
-
-  void update(double S, double D, double Speed)
-  {
-    s = S;
-    d = D;
-    speed = Speed;
-  }
-
+  // getters
   double getId() const { return id; }
   double getS() const { return s; }
   double getD() const { return d; }
   double getSpeed() const { return speed; }
 
 private:
-  int id;
-  double s;
-  double d;
-  double speed;
+  int id;         // unique vehicle id
+  double s;       // car's s position in m
+  double d;       // car's d position in m
+  double speed;   // car's speed in m/s
 };
 
 #endif /* CAR_H_ */

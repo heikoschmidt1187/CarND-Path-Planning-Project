@@ -1,10 +1,8 @@
 #include <cmath>
 
-#include "Trajectory.h"
+#include "TrajectoryHandler.h"
 
-namespace Trajectory {
-
-JMT::JMT(const Car::State& start, const Car::State& end, const double T)
+Eigen::VectorXd TrajectoryHandler::getJMT(const Car::State& start, const Car::State& end, const double T)
 {
   // pre-calculate powers of T to save time
   const double T2 = T * T;
@@ -29,11 +27,13 @@ JMT::JMT(const Car::State& start, const Car::State& end, const double T)
   x = A.inverse() * b;
 
   // coefficents after JMT calculation
-  c = Eigen::VectorXd(6);
-  c <<  start.position, start.velocity, start.acceleration, x[0], x[1], x[2];
+  Eigen::VectorXd ret = Eigen::VectorXd(6);
+  ret <<  start.position, start.velocity, start.acceleration, x[0], x[1], x[2];
+
+  return ret;
 }
 
-double JMT::get(const double t)
+double TrajectoryHandler::getJmtPos(const Eigen::VectorXd& coeffs, const double t)
 {
   // pre-calculate powers of t to save time
   const double t2 = t * t;
@@ -44,7 +44,15 @@ double JMT::get(const double t)
   Eigen::VectorXd T = Eigen::VectorXd(6);
   T << 1.0, t, t2, t3, t4, t5;
 
-  return T.transpose() * c;
+  return T.transpose() * coeffs;
 }
 
+Car::Trajectory TrajectoryHandler::GenerateTrajectory(const Car::State& start_s, const Car::State& start_d,
+    const Car::State& end_s, const Car::State& end_d, double T)
+{
+  // for now, just calculate the JMTs and return the coefficients
+  Eigen::VectorXd coeffs_s = getJMT(start_s, end_s, T);
+  Eigen::VectorXd coeffs_d = getJMT(start_d, end_d, T);
+
+  return {coeffs_s, coeffs_d, T};
 }
