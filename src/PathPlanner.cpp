@@ -1,3 +1,4 @@
+#include "Parameter.h"
 #include "PathPlanner.h"
 #include "helpers.h"
 
@@ -14,18 +15,10 @@ PathPlanner::PathPlanner(const std::vector<double>& waypoints_s,
   waypoint_spline_dy.set_points(waypoints_s, waypoints_dy);
 }
 
-int PathPlanner::getLane(double d)
-{
-  for(unsigned i = 0; i < PathPlanner::k_lane_count; ++i) {
-    if(d < (PathPlanner::k_lane_width * (i + 1))) {
-      return i;
-    }
-  }
-}
-
 std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     const std::vector<double>& previous_path_x,
-    const std::vector<double>& previous_path_y)
+    const std::vector<double>& previous_path_y,
+    const std::vector<Car>& other_cars)
 {
   // output vectors
   std::vector<double> next_x;
@@ -33,7 +26,7 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
 
   // check current lane from state and set if needed
   if(current_state.lane < 0) {
-    current_state.lane = getLane(ego.getD());
+    current_state.lane = ego.getLane();
   }
 
   // update the previous s and d values according to the points not driven by
@@ -68,13 +61,11 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
       d = ego.getD();
     }
 
-    // increase speed by 1m/s/s
-    double target_speed = std::min(static_cast<double>(k_speed_limit - k_speed_buffer),
-      ego.getSpeed() + 5);
+    auto future = behavior_handler.plan(Car(ego.getId(), s, d, ego.getSpeed()), other_cars);
 
     auto trajectory = trajectory_handler.GenerateTrajectory({s, ego.getSpeed(), 0},
-      {d, 0, 0}, {s + 2 * target_speed, target_speed, 0}, {2. + current_state.lane * 4, 0, 0},
-      2);
+      {d, 0, 0}, {future.getS(), future.getSpeed(), 0}, {future.getD(), 0, 0},
+      Parameter::k_prediction_time);
 
 
     for(int i = 1; i < (50 - previous_path_x.size()); ++i) {

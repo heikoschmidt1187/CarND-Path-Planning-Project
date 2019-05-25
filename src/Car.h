@@ -32,6 +32,8 @@ public:
   double getS() const { return s; }
   double getD() const { return d; }
   double getSpeed() const { return speed; }
+  int getLane() const;
+
 
 private:
   int id;         // unique vehicle id

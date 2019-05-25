@@ -4,6 +4,9 @@
 #include <vector>
 
 #include "spline.h"
+
+#include "Parameter.h"
+#include "BehaviorHandler.h"
 #include "TrajectoryHandler.h"
 #include "Car.h"
 
@@ -17,14 +20,8 @@ public:
 
   std::vector<std::vector<double>> update(const Car& ego,
     const std::vector<double>& previous_path_x,
-    const std::vector<double>& previous_path_y);
-
-private:
-  static constexpr float k_lane_width = 4.0;        // m
-  static constexpr unsigned int k_lane_count = 3;   // number of lanes
-
-  static constexpr float k_speed_limit = 22.2;      // m/s
-  static constexpr float k_speed_buffer = 2.;       // m/s
+    const std::vector<double>& previous_path_y,
+    const std::vector<Car>& other_cars);
 
 private:
   struct PlannerState {
@@ -50,6 +47,7 @@ private:
   PlannerState current_state;
 
   TrajectoryHandler trajectory_handler;
+  BehaviorHandler behavior_handler;
 };
 
 #endif /* PATHPLANNER_H_ */

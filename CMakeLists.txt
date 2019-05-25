@@ -8,7 +8,7 @@ set(CXX_FLAGS "-Wall")
 set(CXX_FLAGS "-Wno-subobject-linkage")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/main.cpp src/Car.cpp src/TrajectoryHandler.cpp src/PathPlanner.cpp)
+set(sources src/main.cpp src/Car.cpp src/TrajectoryHandler.cpp src/PathPlanner.cpp src/BehaviorHandler.cpp)
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")

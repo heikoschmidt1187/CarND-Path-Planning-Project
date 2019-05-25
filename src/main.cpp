@@ -113,9 +113,21 @@ int main() {
           // update own car
           ego.update(car_s, car_d, car_speed);
 
+          // generate a vector of all other cars - for now w/o history for prediction
+          std::vector<Car> other_cars;
+
+          for(const auto& s : sensor_fusion) {
+            Car other(static_cast<int>(s[0]));
+
+            double speed = sqrt(pow(s[3], 2) + pow(s[4], 2));
+            other.update(s[5], s[6], speed);
+
+            other_cars.push_back(other);
+          }
+
           // plan!
           std::vector<std::vector<double>> xy = planner.update(ego,
-            previous_path_x, previous_path_y);
+            previous_path_x, previous_path_y, other_cars);
 
           msgJson["next_x"] = xy.at(0);
           msgJson["next_y"] = xy.at(1);
