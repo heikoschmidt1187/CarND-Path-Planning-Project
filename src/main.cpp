@@ -110,24 +110,31 @@ int main() {
            *   sequentially every .02 seconds
            */
 
-          // update own car
-          ego.update(car_s, car_d, car_speed);
+          std::vector<std::vector<double>> xy;
 
-          // generate a vector of all other cars - for now w/o history for prediction
-          std::vector<Car> other_cars;
+          // for some reason, the simulator is sending weird negative d values at start
+          // so ignore these
+          if(car_d >= 0) {
 
-          for(const auto& s : sensor_fusion) {
-            Car other(static_cast<int>(s[0]));
+            // update own car
+            ego.update(car_s, car_d, car_speed);
 
-            double speed = sqrt(pow(s[3], 2) + pow(s[4], 2));
-            other.update(s[5], s[6], speed);
+            // generate a vector of all other cars - for now w/o history for prediction
+            std::vector<Car> other_cars;
 
-            other_cars.push_back(other);
+            for(const auto& s : sensor_fusion) {
+              Car other(static_cast<int>(s[0]));
+
+              double speed = sqrt(pow(s[3], 2) + pow(s[4], 2));
+              other.update(s[5], s[6], speed);
+
+              other_cars.push_back(other);
+            }
+
+            // plan!
+            xy = planner.update(ego,
+              previous_path_x, previous_path_y, other_cars);
           }
-
-          // plan!
-          std::vector<std::vector<double>> xy = planner.update(ego,
-            previous_path_x, previous_path_y, other_cars);
 
           msgJson["next_x"] = xy.at(0);
           msgJson["next_y"] = xy.at(1);

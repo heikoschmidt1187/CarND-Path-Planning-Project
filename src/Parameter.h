@@ -5,7 +5,7 @@ class Parameter {
 public:
   // road
   static constexpr float k_lane_width = 4.0;        // m
-  static constexpr unsigned int k_lane_count = 3;   // number of lanes
+  static constexpr int k_lane_count = 3;   // number of lanes
 
   // speed
   static constexpr float k_speed_limit = 22.2;      // m/s

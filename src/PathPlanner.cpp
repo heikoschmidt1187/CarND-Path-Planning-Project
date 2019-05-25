@@ -61,6 +61,13 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
       d = ego.getD();
     }
 
+    // clear debug output
+#if defined(_WIN32) || defined(_WIN64)
+    system("cls")
+#else
+    system("clear");
+#endif
+
     auto future = behavior_handler.plan(Car(ego.getId(), s, d, ego.getSpeed()), other_cars);
 
     auto trajectory = trajectory_handler.GenerateTrajectory({s, ego.getSpeed(), 0},

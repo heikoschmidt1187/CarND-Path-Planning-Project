@@ -32,11 +32,14 @@ public:
   double getS() const { return s; }
   double getD() const { return d; }
   double getSpeed() const { return speed; }
-  int getLane() const;
+  int getLane() const { return lane; }
 
+private:
+  void calcLane();
 
 private:
   int id;         // unique vehicle id
+  int lane;       // current lane depending on d
   double s;       // car's s position in m
   double d;       // car's d position in m
   double speed;   // car's speed in m/s
