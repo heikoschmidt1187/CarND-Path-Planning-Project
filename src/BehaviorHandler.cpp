@@ -5,18 +5,21 @@
 
 BehaviorHandler::BehaviorHandler()
   : current_fsm_state(s_KL)
+  , prev_lane(-1)
+  , lane_change_cycles(0)
 {
   // -1 are cars with no valid lane detected
   for(int i = -1; i < Parameter::k_lane_count; ++i)
     lanes.insert(std::make_pair(i, Lane()));
 }
 
-Car BehaviorHandler::plan(const Car& prediction, const std::vector<Car>& other_cars)
+BehaviorTarget BehaviorHandler::plan(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars)
 {
   // map other cars to lanes for further processing
-  updateCarMap(prediction.getS(), other_cars);
+  updateCarMap(s_state.position, other_cars);
 
   // for debug reasons, plot values of each lane
+  /*
   std::cout << "**** Lanes ****" << std::endl;
   for(int i = -1; i < Parameter::k_lane_count; ++i) {
     std::cout << "Lane " << i << ": " << lanes[i].vehicles.size() << std::endl;
@@ -26,94 +29,188 @@ Car BehaviorHandler::plan(const Car& prediction, const std::vector<Car>& other_c
       " Distance Rear: " << lanes[i].distance_rear << std::endl;
     std::cout << "Lane Speed: " << lanes[i].speed << std::endl << std::endl;
   }
+  */
 
   // run the state machine
-  Car target;
+  BehaviorTarget target;
 
   switch(current_fsm_state) {
     case s_KL:
-      target = keepLane(prediction, other_cars);
+      target = keepLane(s_state, d_state, other_cars);
       break;
 
     case s_LCL:
-      target = laneChangeLeft(prediction, other_cars);
+      target = laneChangeLeft(s_state, d_state, other_cars);
       break;
 
     case s_LCR:
-      target = laneChangeRight(prediction, other_cars);
+      target = laneChangeRight(s_state, d_state, other_cars);
       break;
   }
 
+  // remember lane for next cycle in case we want a lane change
+  prev_lane = Car::calcLane(d_state.position);
+
   return target;
 }
 
-Car BehaviorHandler::keepLane(const Car& prediction, const std::vector<Car>& other_cars)
+BehaviorTarget BehaviorHandler::keepLane(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars)
 {
   std::cout << "STATE: KEEP LANE" << std::endl;
 
+  BehaviorTarget target;
+  target.need_fast_reaction = false;
+
   // for now: keep in lane
-  Car target(prediction.getId());
+  double target_speed = s_state.velocity;
+  int predicted_lane = 1; //Car::calcLane(d_state.position);
+  int target_lane = predicted_lane;
 
-  // get the closest other car in front of out prediction
-  double distance = std::numeric_limits<double>::infinity();
-  double front_speed = 0.;
+  // if no car is in my lane or if it's far away, stay in lane
+  if(   (lanes[predicted_lane].vehicles.empty() == true)
+    ||  (lanes[predicted_lane].distance_front >
+      (3 * Parameter::k_prediction_time * s_state.velocity))) {
 
-  for(const auto& o : other_cars) {
-    /*
-    std::cout << "*** Object" << o.getId() << std::endl;
-    std::cout << o.getLane() << ", " << o.getS() << ", " << o.getD() << ", " << o.getSpeed() << std::endl;
-    std::cout << prediction.getLane() << ", " << prediction.getS() << ", " << prediction.getD() << ", " << prediction.getSpeed() << std::endl;
-    */
-
-    if((o.getLane() == prediction.getLane()) && (o.getS() > prediction.getS())) {
-      if(distance > (o.getS() - prediction.getS())) {
-        distance = o.getS() - prediction.getS();
-        front_speed = o.getSpeed();
-      }
-    }
-  }
-
-  std::cout << "--DISTANCE " << distance << std::endl;
-
-  double target_speed = prediction.getSpeed();
-
-  // we predict 2s into the future, so the critical distance to react is velocity * time
-  if(distance > 3 * Parameter::k_prediction_time * target_speed) {
     std::cout << "no car in front" << std::endl;
 
     // increase speed
-    target_speed = std::min(static_cast<double>(Parameter::k_speed_limit - Parameter::k_speed_buffer),
-      prediction.getSpeed() + 5);
-
-  } else if(distance > (target_speed * Parameter::k_prediction_time)) {
-
-    std::cout << "car in front - safe distance" << std::endl;
-
-    // increase speed
-    target_speed = std::min(static_cast<double>(Parameter::k_speed_limit - Parameter::k_speed_buffer),
-      prediction.getSpeed() + 1);
+    target_speed = static_cast<double>(Parameter::k_speed_limit - Parameter::k_speed_buffer);
 
   } else {
-    std::cout << "car in front - slow down " << front_speed << std::endl;
 
-    // decrease speed
-    target_speed = std::max(front_speed - 1, target_speed - 1);
+    // there's a car in front of us that may force us to speed up faster or even slow
+    // down from possible speed limit --> check if there's a faster lane
+    // for now: just compare, TODO: cost function!
+    if(predicted_lane == 0) {
+      // left-most lane, only change to next right is possible
+      if(lanes[predicted_lane + 1].speed > lanes[predicted_lane].speed) {
+        current_fsm_state = s_LCR;
+      }
+    } else if(predicted_lane == (Parameter::k_lane_count - 1)) {
+      // right-most lane, only change to next left is possible
+      if(lanes[predicted_lane - 1].speed > lanes[predicted_lane].speed) {
+        current_fsm_state = s_LCL;
+      }
+    } else {
+      // check for faster lane neighbor lane
+      int lane_index = predicted_lane;
+
+      if(lanes[lane_index + 1].speed > lanes[lane_index].speed) {
+        lane_index += 1;
+      } else {
+        lane_index -= 1;
+      }
+
+      // compare targeting lane
+      if(lanes[lane_index].speed > lanes[predicted_lane].speed) {
+        current_fsm_state = (lane_index < predicted_lane) ? s_LCL : s_LCR;
+      }
+    }
+
+    std::cout << "State after evaluation: " << current_fsm_state << std::endl;
+
+    // TODO: refactor - there must be a better implementation!
+    // depending on if we are already in the fastest lane, we still may need to
+    // adjust are speed to preceting traffic
+    if(current_fsm_state == s_KL) {
+      if(lanes[predicted_lane].distance_front > (Parameter::k_prediction_time * s_state.velocity)) {
+
+        std::cout << "car in front - safe distance" << std::endl;
+
+        // increase speed
+        target_speed = static_cast<double>(Parameter::k_speed_limit - Parameter::k_speed_buffer);
+
+      } else {
+
+        target.need_fast_reaction = true;
+
+        std::cout << "car in front - slow down " << lanes[target_lane].closest_front_speed << std::endl;
+
+        // decrease speed
+        target_speed = lanes[target_lane].closest_front_speed - 1;
+      }
+    } else {
+      lane_change_cycles = 0;
+      target_lane += (current_fsm_state == s_LCL) ? -1 : 1;
+    }
   }
 
-  target.update(prediction.getS() + target_speed * Parameter::k_prediction_time,
-    (2 + prediction.getLane() * 4), target_speed);
+  // TEST always stay in state
+  current_fsm_state = s_KL;
+
+  target.speed = target_speed;
+  target.lane = target_lane;
 
   return target;
 }
 
-Car BehaviorHandler::laneChangeLeft(const Car& prediction, const std::vector<Car>& other_cars)
+BehaviorTarget BehaviorHandler::laneChangeLeft(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars)
 {
-  return Car();
+  std::cout << "STATE: LANE CHANGE LEFT" << std::endl;
+
+  int predicted_lane = Car::calcLane(d_state.position);
+  int target_lane = predicted_lane;
+  double target_speed = s_state.velocity;
+
+  lane_change_cycles++;
+
+  // check if lane chane is finished
+  if(predicted_lane != prev_lane) {
+    std::cout << "car is in new lane" << std::endl;
+    target_lane = predicted_lane;
+  } else {
+    target_lane = predicted_lane - 1;
+
+    // if car is in the same lane and the cycles are over, switch to KL
+    if(lane_change_cycles >= Parameter::k_min_lane_change_cycles) {
+      std::cout << "Switch to KL" << std::endl;
+      lane_change_cycles = 0;
+      current_fsm_state = s_KL;
+    }
+  }
+
+  // for now: maintain the speed during lane change
+
+  BehaviorTarget target;
+  target.need_fast_reaction = false;
+  target.speed = target_speed;
+  target.lane = target_lane;
+
+  return target;
 }
 
-Car BehaviorHandler::laneChangeRight(const Car& prediction, const std::vector<Car>& other_cars)
+BehaviorTarget BehaviorHandler::laneChangeRight(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars)
 {
-  return Car();
+  std::cout << "STATE: LANE CHANGE RIGHT" << std::endl;
+
+  int predicted_lane = Car::calcLane(d_state.position);
+  int target_lane = predicted_lane;
+  double target_speed = s_state.velocity;
+
+  lane_change_cycles++;
+
+  // check if lane chane is finished
+  if(predicted_lane != prev_lane) {
+    std::cout << "car is in new lane" << std::endl;
+    target_lane = predicted_lane;
+  } else {
+    target_lane = predicted_lane + 1;
+
+    // if car is in the same lane and the cycles are over, switch to KL
+    if(lane_change_cycles >= Parameter::k_min_lane_change_cycles) {
+      std::cout << "Switch to KL" << std::endl;
+      lane_change_cycles = 0;
+      current_fsm_state = s_KL;
+    }
+  }
+
+  // for now: maintain the speed during lane change
+  BehaviorTarget target;
+  target.need_fast_reaction = false;
+  target.speed = target_speed;
+  target.lane = target_lane;
+
+  return target;
 }
 
 void BehaviorHandler::updateCarMap(const double pred_s, const std::vector<Car>& other_cars)
@@ -148,6 +245,7 @@ void BehaviorHandler::Lane::update(const double s)
       if((v.getS() - s) < distance_front) {
         distance_front = v.getS() - s;
         closest_front_id = v.getId();
+        closest_front_speed = v.getSpeed();
 
         // lane speed defined by slowest car in front
         if(v.getSpeed() < speed) {
@@ -161,6 +259,7 @@ void BehaviorHandler::Lane::update(const double s)
       if((s - v.getS()) < distance_rear) {
         distance_rear = s - v.getS();
         closest_rear_id = v.getId();
+        closest_rear_speed = v.getSpeed();
       }
     }
   }

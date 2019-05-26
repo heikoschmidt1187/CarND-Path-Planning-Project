@@ -7,8 +7,14 @@
 class Car {
 public:
   struct Trajectory {
-    Eigen::VectorXd c_s;    // trajectory s coefficients
-    Eigen::VectorXd c_d;    // trajectory d coefficients
+    Eigen::VectorXd c_s;          // trajectory s coefficients
+    Eigen::VectorXd c_s_dot;      // trajectory s_dot coefficients
+    Eigen::VectorXd c_s_dot_dot;  // trajectory s_dot_dot coefficients
+
+    Eigen::VectorXd c_d;          // trajectory d coefficients
+    Eigen::VectorXd c_d_dot;      // trajectory d_dot coefficients
+    Eigen::VectorXd c_d_dot_dot;  // trajectory d_dot_dot coefficients
+
     double t;               // trajectory time
   };
 
@@ -34,8 +40,7 @@ public:
   double getSpeed() const { return speed; }
   int getLane() const { return lane; }
 
-private:
-  void calcLane();
+  static int calcLane(const double d);
 
 private:
   int id;         // unique vehicle id

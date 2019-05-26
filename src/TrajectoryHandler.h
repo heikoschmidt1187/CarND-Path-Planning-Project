@@ -12,8 +12,8 @@ public:
   Car::Trajectory GenerateTrajectory(const Car::State& start_s, const Car::State& start_d,
     const Car::State& end_s, const Car::State& end_d, double T);
 
-  // get the position from a given JMT
-  static double getJmtPos(const Eigen::VectorXd& coeffs, const double t);
+  // get the values for position, velocity or acceleration from a given JMT
+  static double getJmtVals(const Eigen::VectorXd& coeffs, const double t);
 
 private:
   Eigen::VectorXd getJMT(const Car::State& start, const Car::State& end, const double T);

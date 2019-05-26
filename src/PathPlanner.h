@@ -36,8 +36,8 @@ private:
   int getLane(double d);
 
 private:
-  std::vector<double> previous_path_s;
-  std::vector<double> previous_path_d;
+  std::vector<Car::State> previous_path_s;
+  std::vector<Car::State> previous_path_d;
 
   tk::spline waypoint_spline_x;
   tk::spline waypoint_spline_y;

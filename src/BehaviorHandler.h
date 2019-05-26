@@ -8,6 +8,12 @@
 #include "Parameter.h"
 #include "Car.h"
 
+struct BehaviorTarget {
+  bool need_fast_reaction;
+  double speed;
+  double lane;
+};
+
 class BehaviorHandler {
 
 private:
@@ -31,9 +37,11 @@ private:
 
     int closest_front_id;         // id of closest car in front
     double distance_front;        // distance to closest car in front
+    double closest_front_speed;   // speed of closest car in front
 
     int closest_rear_id;          // id of closest car in rear
     double distance_rear;         // distance to closest rear
+    double closest_rear_speed;   // speed of closest car rear
 
     double speed;            // lane speed
   };
@@ -43,12 +51,12 @@ public:
   BehaviorHandler();
 
   // plan and return target car prediction
-  Car plan(const Car& prediction, const std::vector<Car>& other_cars);
+  BehaviorTarget plan(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
 
 private:
-  Car keepLane(const Car& prediction, const std::vector<Car>& other_cars);
-  Car laneChangeLeft(const Car& prediction, const std::vector<Car>& other_cars);
-  Car laneChangeRight(const Car& prediction, const std::vector<Car>& other_cars);
+  BehaviorTarget keepLane(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
+  BehaviorTarget laneChangeLeft(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
+  BehaviorTarget laneChangeRight(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
 
   void updateCarMap(const double pred_s, const std::vector<Car>& other_cars);
 
@@ -56,6 +64,10 @@ private:
   FsmState current_fsm_state;
 
   std::map<int, Lane> lanes;
+
+  double prev_lane;
+
+  int lane_change_cycles;
 };
 
 #endif /* BEHAVIOR_HANDLER_H_ */

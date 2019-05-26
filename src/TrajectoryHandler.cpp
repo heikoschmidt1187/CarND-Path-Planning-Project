@@ -33,16 +33,31 @@ Eigen::VectorXd TrajectoryHandler::getJMT(const Car::State& start, const Car::St
   return ret;
 }
 
-double TrajectoryHandler::getJmtPos(const Eigen::VectorXd& coeffs, const double t)
+double TrajectoryHandler::getJmtVals(const Eigen::VectorXd& coeffs, const double t)
 {
   // pre-calculate powers of t to save time
   const double t2 = t * t;
   const double t3 = t2 * t;
-  const double t4 = t3 * t;
-  const double t5 = t4 * t;
 
-  Eigen::VectorXd T = Eigen::VectorXd(6);
-  T << 1.0, t, t2, t3, t4, t5;
+  Eigen::VectorXd T;
+
+  if(coeffs.rows() == 6) {
+    
+    const double t4 = t3 * t;
+    const double t5 = t4 * t;
+
+    T = Eigen::VectorXd(6);
+    T << 1.0, t, t2, t3, t4, t5;
+  } else if(coeffs.rows() == 5) {
+
+    const double t4 = t3 * t;
+
+    T = Eigen::VectorXd(5);
+    T << 1.0, t, t2, t3, t4;
+  } else {
+    T = Eigen::VectorXd(4);
+    T << 1.0, t, t2, t3;
+  }
 
   return T.transpose() * coeffs;
 }
@@ -54,5 +69,22 @@ Car::Trajectory TrajectoryHandler::GenerateTrajectory(const Car::State& start_s,
   Eigen::VectorXd coeffs_s = getJMT(start_s, end_s, T);
   Eigen::VectorXd coeffs_d = getJMT(start_d, end_d, T);
 
-  return {coeffs_s, coeffs_d, T};
+  Eigen::VectorXd coeffs_s_dot = Eigen::VectorXd(5);
+  Eigen::VectorXd coeffs_s_dot_dot = Eigen::VectorXd(4);
+  Eigen::VectorXd coeffs_d_dot = Eigen::VectorXd(5);
+  Eigen::VectorXd coeffs_d_dot_dot = Eigen::VectorXd(4);
+
+  // derivate once for *_dot
+  for(int i = 1; i < 6; ++i) {
+    coeffs_s_dot[i - 1] = static_cast<double>(i) * coeffs_s[i];
+    coeffs_d_dot[i - 1] = static_cast<double>(i) * coeffs_d[i];
+  }
+
+  // derivate again for *_dot_dot
+  for(int i = 1; i < 5; ++i) {
+    coeffs_s_dot_dot[i - 1] = static_cast<double>(i) * coeffs_s_dot[i];
+    coeffs_d_dot_dot[i - 1] = static_cast<double>(i) * coeffs_d_dot[i];
+  }
+
+  return {coeffs_s, coeffs_s_dot, coeffs_s_dot_dot, coeffs_d, coeffs_d_dot, coeffs_d_dot_dot, T};
 }

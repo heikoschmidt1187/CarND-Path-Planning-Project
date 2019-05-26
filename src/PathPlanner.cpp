@@ -38,62 +38,102 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     + previous_path_d.size() - previous_path_y.size());
 
   // first attempt: let the car drive in lane while maintaining speed
-  if(previous_path_x.size() < 10) {
 
-    double s;
-    double d;
+  double s, s_vel, s_acc;
+  double d, d_vel, d_acc;
 
-    // reuse previous path and use last s/d as base for new trajectory calculation
-    if(previous_path_x.size() > 0) {
+  // reuse previous path and use last s/d as base for new trajectory calculation
+  if(previous_path_x.size() > 0) {
 
-      for(size_t i = 0; i < previous_path_x.size(); ++i) {
-        next_x.push_back(previous_path_x.at(i));
-        next_y.push_back(previous_path_y.at(i));
-      }
+    s = previous_path_s.back().position;
+    s_vel = previous_path_s.back().velocity;
+    s_acc = previous_path_s.back().acceleration;
 
-      s = previous_path_s.back();
-      d = previous_path_d.back();
-    }
-    else {
-      previous_path_s.clear();
-      previous_path_d.clear();
-      s = ego.getS();
-      d = ego.getD();
-    }
+    d = previous_path_d.back().position;
+    d_vel = previous_path_d.back().velocity;
+    d_acc = previous_path_d.back().acceleration;
+  }
+  else {
+    previous_path_s.clear();
+    previous_path_d.clear();
 
-    // clear debug output
+    s = ego.getS();
+    s_vel = ego.getSpeed();
+    s_acc = 0;
+
+    d = ego.getD();
+    d_vel = 0;
+    d_acc = 0;
+  }
+  // clear debug output
+  /*
 #if defined(_WIN32) || defined(_WIN64)
-    system("cls")
+  system("cls")
 #else
-    system("clear");
+  system("clear");
 #endif
+*/
 
-    auto future = behavior_handler.plan(Car(ego.getId(), s, d, ego.getSpeed()), other_cars);
+  auto future = behavior_handler.plan({s, s_vel, s_acc}, {d, d_vel, d_acc}, other_cars);
 
-    auto trajectory = trajectory_handler.GenerateTrajectory({s, ego.getSpeed(), 0},
-      {d, 0, 0}, {future.getS(), future.getSpeed(), 0}, {future.getD(), 0, 0},
-      Parameter::k_prediction_time);
-
-
-    for(int i = 1; i < (50 - previous_path_x.size()); ++i) {
-      double s = TrajectoryHandler::getJmtPos(trajectory.c_s, i * 0.02);
-      double d = TrajectoryHandler::getJmtPos(trajectory.c_d, i * 0.02);
-
-      //vector<double> xy = Helpers::getXY(s, 6, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-      previous_path_s.push_back(s);
-      previous_path_d.push_back(d);
-      std::vector<double> xy = Helpers::getXY(s, d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
-
-      next_x.push_back(xy.at(0));
-      next_y.push_back(xy.at(1));
-    }
-
-  } else {
+  if(previous_path_x.size() > 0) {
     for(size_t i = 0; i < previous_path_x.size(); ++i) {
       next_x.push_back(previous_path_x.at(i));
       next_y.push_back(previous_path_y.at(i));
     }
   }
+
+  double time = (50 - previous_path_x.size()) * 0.02;
+
+  // adapt speed change to avoid excessive jerk or acceleration
+  if(s_vel > future.speed) {
+    future.speed = std::max(future.speed, s_vel - time);
+  } else if(s_vel < future.speed) {
+    future.speed = std::min(future.speed, s_vel + time);
+  }
+
+  std::cout << "=== Trajectory calculation ===" << std::endl;
+  std::cout << "Speed: " << future.speed << ", Lane: " << future.lane << std::endl;
+
+  std::cout << "Start: 0 * " << s_vel << " * " << s_acc << std::endl;
+  std::cout << "Start: " << d << " * " << d_vel << " * " << d_acc << std::endl;
+
+  std::cout << "End: " << time * future.speed << " * " << future.speed << " * 0" << std::endl;
+  std::cout << "End: " << 2. + future.lane * 4. << " * 0 * 0" << std::endl;
+
+  auto trajectory = trajectory_handler.GenerateTrajectory(
+    {0, s_vel, s_acc},
+    {d, d_vel, d_acc},
+    {time * future.speed, future.speed, 0},
+    {2. + future.lane * 4., 0, 0},
+    time);
+
+
+  // calculate the states for each cycle - for this we need the derivatives of the coefficients
+  std::cout << "**** new points ***" << std::endl;
+
+  for(int i = 1; i <= (50 - previous_path_x.size()); ++i) {
+
+    double new_s = TrajectoryHandler::getJmtVals(trajectory.c_s, i * 0.02) + s;
+    double new_s_dot = TrajectoryHandler::getJmtVals(trajectory.c_s_dot, i * 0.02);
+    double new_s_dot_dot = TrajectoryHandler::getJmtVals(trajectory.c_s_dot_dot, i * 0.02);
+
+    double new_d = TrajectoryHandler::getJmtVals(trajectory.c_d, i * 0.02);
+    double new_d_dot = TrajectoryHandler::getJmtVals(trajectory.c_d_dot, i * 0.02);
+    double new_d_dot_dot = TrajectoryHandler::getJmtVals(trajectory.c_d_dot_dot, i * 0.02);
+
+    //vector<double> xy = Helpers::getXY(s, 6, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    previous_path_s.push_back({new_s, new_s_dot, new_s_dot_dot});
+    previous_path_d.push_back({new_d, new_d_dot, new_d_dot_dot});
+    std::vector<double> xy = Helpers::getXY(new_s, new_d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
+
+    next_x.push_back(xy.at(0));
+    next_y.push_back(xy.at(1));
+
+    std::cout << new_d << " * ";
+  }
+  std::cout << "\n\n";
+
 
   return {next_x, next_y};
 }
