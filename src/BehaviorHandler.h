@@ -11,7 +11,7 @@
 struct BehaviorTarget {
   bool need_fast_reaction;
   double speed;
-  double lane;
+  int lane;
 };
 
 class BehaviorHandler {
@@ -65,7 +65,8 @@ private:
 
   std::map<int, Lane> lanes;
 
-  double prev_lane;
+  int prev_lane;
+  int target_lane;
 
   int lane_change_cycles;
 };

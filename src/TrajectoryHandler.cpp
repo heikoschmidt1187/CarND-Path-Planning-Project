@@ -42,7 +42,7 @@ double TrajectoryHandler::getJmtVals(const Eigen::VectorXd& coeffs, const double
   Eigen::VectorXd T;
 
   if(coeffs.rows() == 6) {
-    
+
     const double t4 = t3 * t;
     const double t5 = t4 * t;
 

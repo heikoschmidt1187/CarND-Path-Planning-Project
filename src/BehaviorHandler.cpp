@@ -6,6 +6,7 @@
 BehaviorHandler::BehaviorHandler()
   : current_fsm_state(s_KL)
   , prev_lane(-1)
+  , target_lane(-1)
   , lane_change_cycles(0)
 {
   // -1 are cars with no valid lane detected
@@ -17,6 +18,12 @@ BehaviorTarget BehaviorHandler::plan(const Car::State& s_state, const Car::State
 {
   // map other cars to lanes for further processing
   updateCarMap(s_state.position, other_cars);
+
+  // on first call, init target and prev_lane
+  if(target_lane < 0) {
+    target_lane = Car::calcLane(d_state.position);
+    prev_lane = target_lane;
+  }
 
   // for debug reasons, plot values of each lane
   /*
@@ -64,7 +71,7 @@ BehaviorTarget BehaviorHandler::keepLane(const Car::State& s_state, const Car::S
   // for now: keep in lane
   double target_speed = s_state.velocity;
   int predicted_lane = 1; //Car::calcLane(d_state.position);
-  int target_lane = predicted_lane;
+  target_lane = predicted_lane;
 
   // if no car is in my lane or if it's far away, stay in lane
   if(   (lanes[predicted_lane].vehicles.empty() == true)
@@ -135,9 +142,6 @@ BehaviorTarget BehaviorHandler::keepLane(const Car::State& s_state, const Car::S
     }
   }
 
-  // TEST always stay in state
-  current_fsm_state = s_KL;
-
   target.speed = target_speed;
   target.lane = target_lane;
 
@@ -149,28 +153,17 @@ BehaviorTarget BehaviorHandler::laneChangeLeft(const Car::State& s_state, const 
   std::cout << "STATE: LANE CHANGE LEFT" << std::endl;
 
   int predicted_lane = Car::calcLane(d_state.position);
-  int target_lane = predicted_lane;
   double target_speed = s_state.velocity;
 
   lane_change_cycles++;
 
-  // check if lane chane is finished
-  if(predicted_lane != prev_lane) {
-    std::cout << "car is in new lane" << std::endl;
-    target_lane = predicted_lane;
-  } else {
-    target_lane = predicted_lane - 1;
-
-    // if car is in the same lane and the cycles are over, switch to KL
-    if(lane_change_cycles >= Parameter::k_min_lane_change_cycles) {
-      std::cout << "Switch to KL" << std::endl;
-      lane_change_cycles = 0;
-      current_fsm_state = s_KL;
-    }
+  // lange change is finished if target and current lane are equal and lateral speed is small
+  if((predicted_lane == target_lane) && (std::fabs(d_state.velocity) < 0.3)) {
+    std::cout << "Lane change left finished, back to KL" << std::endl;
+    current_fsm_state = s_KL;
   }
 
   // for now: maintain the speed during lane change
-
   BehaviorTarget target;
   target.need_fast_reaction = false;
   target.speed = target_speed;
@@ -184,24 +177,14 @@ BehaviorTarget BehaviorHandler::laneChangeRight(const Car::State& s_state, const
   std::cout << "STATE: LANE CHANGE RIGHT" << std::endl;
 
   int predicted_lane = Car::calcLane(d_state.position);
-  int target_lane = predicted_lane;
   double target_speed = s_state.velocity;
 
   lane_change_cycles++;
 
-  // check if lane chane is finished
-  if(predicted_lane != prev_lane) {
-    std::cout << "car is in new lane" << std::endl;
-    target_lane = predicted_lane;
-  } else {
-    target_lane = predicted_lane + 1;
-
-    // if car is in the same lane and the cycles are over, switch to KL
-    if(lane_change_cycles >= Parameter::k_min_lane_change_cycles) {
-      std::cout << "Switch to KL" << std::endl;
-      lane_change_cycles = 0;
-      current_fsm_state = s_KL;
-    }
+  // lange change is finished if target and current lane are equal and lateral speed is small
+  if((predicted_lane == target_lane) && (std::fabs(d_state.velocity) < 0.3)) {
+    std::cout << "Lane change right finished, back to KL" << std::endl;
+    current_fsm_state = s_KL;
   }
 
   // for now: maintain the speed during lane change
