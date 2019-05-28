@@ -127,7 +127,7 @@ int main() {
 
           // plan!
           auto xy = planner.update(ego,
-            previous_path_x, previous_path_y, other_cars);
+            previous_path_x, previous_path_y, other_cars, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
           msgJson["next_x"] = xy.at(0);
           msgJson["next_y"] = xy.at(1);

@@ -21,7 +21,10 @@ public:
   std::vector<std::vector<double>> update(const Car& ego,
     const std::vector<double>& previous_path_x,
     const std::vector<double>& previous_path_y,
-    const std::vector<Car>& other_cars);
+    const std::vector<Car>& other_cars,
+    const std::vector<double>& map_waypoints_s,
+    const std::vector<double>& map_waypoints_x,
+    const std::vector<double>& map_waypoints_y);
 
 private:
   struct PlannerState {

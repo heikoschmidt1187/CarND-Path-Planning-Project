@@ -2,6 +2,9 @@
 #include "PathPlanner.h"
 #include "helpers.h"
 
+#include <iostream>
+#include <fstream>
+
 PathPlanner::PathPlanner(const std::vector<double>& waypoints_s,
   const std::vector<double>& waypoints_x,
   const std::vector<double> waypoints_y,
@@ -18,7 +21,10 @@ PathPlanner::PathPlanner(const std::vector<double>& waypoints_s,
 std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     const std::vector<double>& previous_path_x,
     const std::vector<double>& previous_path_y,
-    const std::vector<Car>& other_cars)
+    const std::vector<Car>& other_cars,
+    const std::vector<double>& map_waypoints_s,
+    const std::vector<double>& map_waypoints_x,
+    const std::vector<double>& map_waypoints_y)
 {
   // output vectors
   std::vector<double> next_x;
@@ -45,6 +51,48 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     previous_path_d.erase(previous_path_d.begin(), previous_path_d.begin()
       + previous_path_d.size() - previous_path_x.size());
 
+    // clear debug output
+    /*
+  #if defined(_WIN32) || defined(_WIN64)
+    system("cls")
+  #else
+    system("clear");
+  #endif
+  */
+
+    //auto future = behavior_handler.plan({s, s_vel, s_acc}, {d, d_vel, d_acc}, other_cars);
+
+    static int ctr = 0;
+    ctr++;
+    std::cout << "Ctr: " << ctr << std::endl;
+
+    BehaviorTarget future = {false, 20., (ctr < 100) ? 1 : 2};
+
+    static int last_lane = future.lane;
+
+    // depending on if fast reaction is needed, we do not use all the previous path
+    if(last_lane == future.lane) {
+      if(previous_path_x.size() > 0) {
+        for(size_t i = 0; i < previous_path_x.size(); ++i) {
+          next_x.push_back(previous_path_x.at(i));
+          next_y.push_back(previous_path_y.at(i));
+        }
+      }
+    } else {
+      std::cout << "Fast reaction..." << std::endl;
+      // clean the state to only use the next 5 points
+      if(previous_path_x.size() > 5) {
+        previous_path_s.erase(previous_path_s.begin() + 5, previous_path_s.end());
+        previous_path_d.erase(previous_path_d.begin() + 5, previous_path_d.end());
+      }
+
+      // only use 5 previous points...
+      for(size_t i = 0; i < 5; ++i) {
+          next_x.push_back(previous_path_x.at(i));
+          next_y.push_back(previous_path_y.at(i));
+      }
+    }
+
     // first attempt: let the car drive in lane while maintaining speed
     Car::State begin_s;
     Car::State begin_d;
@@ -69,73 +117,30 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
 
       farest_s = ego.getS();
     }
-    // clear debug output
-    /*
-  #if defined(_WIN32) || defined(_WIN64)
-    system("cls")
-  #else
-    system("clear");
-  #endif
-  */
-
-    //auto future = behavior_handler.plan({s, s_vel, s_acc}, {d, d_vel, d_acc}, other_cars);
 
     /*
-    static int ctr = 0;
-    ctr++;
-    std::cout << "Ctr: " << ctr << std::endl;
-    */
+    static unsigned int cycle = 0;
+    cycle++;
+    unsigned int globctr = 0;
 
-    BehaviorTarget future = {false, 20., current_state.lane /*(ctr < 100) ? 1 : 2*/};
-
-    /*
-    static int last_lane = future.lane;
-
-
-    // depending on if fast reaction is needed, we do not use all the previous path
-    if(last_lane == future.lane) {
-      if(previous_path_x.size() > 0) {
-        for(size_t i = 0; i < previous_path_x.size(); ++i) {
-          next_x.push_back(previous_path_x.at(i));
-          next_y.push_back(previous_path_y.at(i));
-        }
-      }
-    } else {
-      std::cout << "Fast reaction..." << std::endl;
-      // clean the state to only use the next 5 points
-      if(previous_path_x.size() > 5) {
-        previous_path_s.erase(previous_path_s.begin() + 5, previous_path_s.end());
-        previous_path_d.erase(previous_path_d.begin() + 5, previous_path_d.end());
-      }
-
-      // only use 5 previous points...
-      for(size_t i = 0; i < 5; ++i) {
-          next_x.push_back(previous_path_x.at(i));
-          next_y.push_back(previous_path_y.at(i));
-      }
-
-      // ...and update trajectory base
-      s = previous_path_s.back().position;
-      s_vel = previous_path_s.back().velocity;
-      s_acc = previous_path_s.back().acceleration;
-
-      d = previous_path_d.back().position;
-      d_vel = previous_path_d.back().velocity;
-      d_acc = previous_path_d.back().acceleration;
-    }
+    std::ofstream file;
+    file.open("log.log", std::ios::out | std::ios::app);
+    file << "=== Cycle " << std::to_string(cycle) << " ===" << std::endl;
     */
 
     // copy previous path if present
-    if(previous_path_x.size() > 0) {
-      for(size_t i = 0; i < previous_path_x.size(); ++i) {
-        next_x.push_back(previous_path_x.at(i));
-        next_y.push_back(previous_path_y.at(i));
-      }
-    }
+        /*
+        globctr++;
+        file << globctr << ": (" << previous_path_s.at(i).position << "," << previous_path_d.at(i).position << ")" << std::endl;
+        */
+
+    /*
+    file << "||";
+    */
 
     //double time = 1 + (50 - previous_path_s.size()) * 0.02;
     int missing_ponts = 50 - previous_path_s.size();
-    double time = 2. - 1. + static_cast<double>(missing_ponts) * 0.02;
+    double time = 1 + static_cast<double>(missing_ponts) * 0.02;
 
     // adapt speed change to avoid excessive jerk or acceleration (1 m/s/s)
     double target_speed = std::min(begin_s.velocity + time, future.speed);
@@ -164,7 +169,14 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     // calculate the states for each cycle - for this we need the derivatives of the coefficients
     std::cout << "**** new points ***" << std::endl;
 
-    for(int i = 1; i <= (missing_ponts ); ++i) {
+    std::cout << "Coeffs: " << trajectory.c_s[0] << ", "
+        << trajectory.c_s[1] << ", "
+        << trajectory.c_s[2] << ", "
+        << trajectory.c_s[3] << ", "
+        << trajectory.c_s[4] << ", "
+        << trajectory.c_s[5] << std::endl;
+
+    for(int i = 1; i <= (missing_ponts + 1); ++i) {
 
       double new_s = TrajectoryHandler::getJmtVals(trajectory.c_s, i * 0.02) + farest_s;
       double new_s_dot = TrajectoryHandler::getJmtVals(trajectory.c_s_dot, i * 0.02);
@@ -179,17 +191,25 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
       previous_path_d.push_back({new_d, new_d_dot, new_d_dot_dot});
       //std::vector<double> xy = Helpers::getXY(new_s, new_d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
       std::vector<double> xy = Helpers::getXY(new_s, new_d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
+      //std::vector<double> xy = Helpers::getXY(new_s, new_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
       next_x.push_back(xy.at(0));
       next_y.push_back(xy.at(1));
 
+      /*
+      globctr++;
+      file << globctr << ": (" << new_s << "," << new_d << ")" << std::endl;
+      */
+
       std::cout << i << ": (" << new_s << ", " << new_d << ")" << std::endl;
     }
-    std::cout << "\n\n";
-
     /*
-    last_lane = future.lane;
+    file << std::endl;
+    file.close();
+    std::cout << "\n\n";
     */
+
+    last_lane = future.lane;
   }
 
 

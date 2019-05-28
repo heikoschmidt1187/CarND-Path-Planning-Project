@@ -25,10 +25,14 @@ Eigen::VectorXd TrajectoryHandler::getJMT(const Car::State& start, const Car::St
 
   Eigen::VectorXd x = Eigen::VectorXd(3);
   x = A.inverse() * b;
+  /*
+  Eigen::ColPivHouseholderQR<Eigen::MatrixXd> dec(a);
+  Eigen::VectorXd x = dec.solve(b);
+  */
 
   // coefficents after JMT calculation
   Eigen::VectorXd ret = Eigen::VectorXd(6);
-  ret <<  start.position, start.velocity, start.acceleration, x[0], x[1], x[2];
+  ret <<  start.position, start.velocity, 0.5 * start.acceleration, x[0], x[1], x[2];
 
   return ret;
 }
