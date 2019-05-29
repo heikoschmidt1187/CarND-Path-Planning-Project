@@ -26,7 +26,6 @@ BehaviorTarget BehaviorHandler::plan(const Car::State& s_state, const Car::State
   }
 
   // for debug reasons, plot values of each lane
-  /*
   std::cout << "**** Lanes ****" << std::endl;
   for(int i = -1; i < Parameter::k_lane_count; ++i) {
     std::cout << "Lane " << i << ": " << lanes[i].vehicles.size() << std::endl;
@@ -36,7 +35,6 @@ BehaviorTarget BehaviorHandler::plan(const Car::State& s_state, const Car::State
       " Distance Rear: " << lanes[i].distance_rear << std::endl;
     std::cout << "Lane Speed: " << lanes[i].speed << std::endl << std::endl;
   }
-  */
 
   // run the state machine
   BehaviorTarget target;
@@ -70,13 +68,13 @@ BehaviorTarget BehaviorHandler::keepLane(const Car::State& s_state, const Car::S
 
   // for now: keep in lane
   double target_speed = s_state.velocity;
-  int predicted_lane = 1; //Car::calcLane(d_state.position);
+  int predicted_lane = Car::calcLane(d_state.position);
   target_lane = predicted_lane;
 
   // if no car is in my lane or if it's far away, stay in lane
   if(   (lanes[predicted_lane].vehicles.empty() == true)
     ||  (lanes[predicted_lane].distance_front >
-      (3 * Parameter::k_prediction_time * s_state.velocity))) {
+      (2 * Parameter::k_prediction_time * s_state.velocity))) {
 
     std::cout << "no car in front" << std::endl;
 
@@ -198,6 +196,7 @@ BehaviorTarget BehaviorHandler::laneChangeRight(const Car::State& s_state, const
 
 void BehaviorHandler::updateCarMap(const double pred_s, const std::vector<Car>& other_cars)
 {
+  std::cout << "Update car map " << pred_s << std::endl;
   // clear the lanes
   for(int i = -1; i < Parameter::k_lane_count; ++i)
     lanes[i] = Lane();
@@ -221,12 +220,12 @@ void BehaviorHandler::Lane::update(const double s)
 
   for(const auto& v : vehicles) {
 
-    // check if car is in front of behind
+    // check if car is in front or behind
     if(v.getS() >= s) {
 
       // check if car is closer
-      if((v.getS() - s) < distance_front) {
-        distance_front = v.getS() - s;
+      if(std::fabs(v.getS() - s) < distance_front) {
+        distance_front = std::fabs(v.getS() - s);
         closest_front_id = v.getId();
         closest_front_speed = v.getSpeed();
 
@@ -239,8 +238,8 @@ void BehaviorHandler::Lane::update(const double s)
     } else {
 
       // check if car is closer
-      if((s - v.getS()) < distance_rear) {
-        distance_rear = s - v.getS();
+      if(std::fabs(s - v.getS()) < distance_rear) {
+        distance_rear = std::fabs(s - v.getS());
         closest_rear_id = v.getId();
         closest_rear_speed = v.getSpeed();
       }
