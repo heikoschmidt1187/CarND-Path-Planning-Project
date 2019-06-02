@@ -80,7 +80,9 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
       farest_s = ego.getS();
     }
 
-    auto future = behavior_handler.plan({farest_s, begin_s.velocity, begin_s.acceleration},
+
+    auto future = behavior_handler.plan(ego, {farest_s, begin_s.velocity, begin_s.acceleration},
+       previous_path_s.size() * 0.02,
        {begin_d.position, begin_d.velocity, begin_d.acceleration}, other_cars);
 
     // depending on if fast reaction is needed, we do not use all the previous path
@@ -134,7 +136,7 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     int missing_ponts = 50 - previous_path_s.size();
 
     // 50 points ==> 1 sec is used for trajectory generation, but we plan wide
-    double time = 2 + static_cast<double>(missing_ponts) * 0.02;
+    double time = Parameter::k_prediction_time + static_cast<double>(missing_ponts) * 0.02;
 
     // adapt speed change to avoid excessive jerk or acceleration (2 m/s/s)
     // TODO: behavior can tell the speedup/slowdown rate based on other traffic --> use this here

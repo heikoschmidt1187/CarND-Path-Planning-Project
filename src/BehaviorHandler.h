@@ -19,7 +19,7 @@ class BehaviorHandler {
 private:
   // behavior Fsm states
   enum FsmState {
-    s_KL,       // keep lane
+    s_KL = 0,   // keep lane
     s_LCL,      // lane change left
     s_LCR       // lane change right
   };
@@ -51,14 +51,16 @@ public:
   BehaviorHandler();
 
   // plan and return target car prediction
-  BehaviorTarget plan(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
+  BehaviorTarget plan(const Car& ego, const Car::State& s_state, const double future_time, const Car::State& d_state, const std::vector<Car>& other_cars);
 
 private:
-  BehaviorTarget keepLane(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
+  BehaviorTarget keepLane(const Car::State& s_state, const double future_time, const Car::State& d_state, const std::vector<Car>& other_cars);
   BehaviorTarget laneChangeLeft(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
   BehaviorTarget laneChangeRight(const Car::State& s_state, const Car::State& d_state, const std::vector<Car>& other_cars);
 
   void updateCarMap(const double pred_s, const std::vector<Car>& other_cars);
+  std::vector<double> getLaneCost(const int lane, const double velocity, const double future_time);
+  bool isLaneChangeSafe(const FsmState state, const double velocity, const int lane);
 
 private:
   FsmState current_fsm_state;
