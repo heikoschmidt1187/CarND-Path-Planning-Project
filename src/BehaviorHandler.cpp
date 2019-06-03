@@ -251,6 +251,11 @@ BehaviorTarget BehaviorHandler::laneChangeRight(const Car::State& s_state, const
 
 void BehaviorHandler::updateCarMap(const double pred_s, const std::vector<Car>& other_cars)
 {
+  // with the current implementation, s is growing beyond the total track length
+  // so for getting the map coordinates, we need to project the current s position
+  // back to the map defined data
+  double projected_s = std::fmod(pred_s, 6945.554);
+
   std::cout << "Update car map " << pred_s << std::endl;
   // clear the lanes
   for(int i = -1; i < Parameter::k_lane_count; ++i)
@@ -262,7 +267,7 @@ void BehaviorHandler::updateCarMap(const double pred_s, const std::vector<Car>& 
 
   // update the lane data
   for(int i = -1; i < Parameter::k_lane_count; ++i)
-    lanes[i].update(pred_s);
+    lanes[i].update(projected_s);
 }
 
 void BehaviorHandler::Lane::update(const double s)

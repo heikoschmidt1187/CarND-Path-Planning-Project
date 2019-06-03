@@ -165,14 +165,33 @@ public:
   static vector<double> getXY(double s, double d, const tk::spline& waypoint_spline_x, const tk::spline& waypoint_spline_y,
     const tk::spline& waypoint_spline_dx, const tk::spline& waypoint_spline_dy)
   {
-    // check calculation with spline
-    double waypoint_x = waypoint_spline_x(s);
-    double waypoint_y = waypoint_spline_y(s);
-    double waypoint_dx = waypoint_spline_dx(s);
-    double waypoint_dy = waypoint_spline_dy(s);
+    // with the current implementation, s is growing beyond the total track length
+    // so for getting the map coordinates, we need to project the current s position
+    // back to the map defined data
+    double projected_s = std::fmod(s, 6945.554);
 
+    // check calculation with spline
+    double waypoint_x = waypoint_spline_x(projected_s);
+    double waypoint_y = waypoint_spline_y(projected_s);
+
+    /*
+    double waypoint_dx = waypoint_spline_dx(projected_s);
+    double waypoint_dy = waypoint_spline_dy(projected_s);
+    */
+
+    auto norm_x = waypoint_spline_y.deriv(1, projected_s);
+    auto norm_y = -waypoint_spline_x.deriv(1, projected_s);
+
+    auto kd = std::sqrt(std::pow(d, 2) - pow(norm_x, 2) - pow(norm_y, 2));
+
+
+    /*
     double x = waypoint_x + waypoint_dx * d;
     double y = waypoint_y + waypoint_dy * d;
+    */
+
+    double x = waypoint_x + kd * norm_x;
+    double y = waypoint_y + kd * norm_y;
 
     return {x, y};
   }

@@ -55,6 +55,8 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     system("clear");
   #endif
 
+  std::cout << "****** Car s " << ego.getS() << std::endl;
+
     // reuse previous path and use last s/d as base for new trajectory calculation
     double farest_s = 0;
 

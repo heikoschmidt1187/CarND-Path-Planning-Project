@@ -113,6 +113,8 @@ int main() {
           // update own car
           ego.update(car_s, car_d, car_speed);
 
+          std::cout << "Current s: " << car_s << std::endl;
+
           // generate a vector of all other cars - for now w/o history for prediction
           std::vector<Car> other_cars;
 
