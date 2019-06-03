@@ -9,6 +9,7 @@
 #include "BehaviorHandler.h"
 #include "TrajectoryHandler.h"
 #include "Car.h"
+#include "MapHelper.h"
 
 class PathPlanner {
 public:
@@ -42,10 +43,7 @@ private:
   std::vector<Car::State> previous_path_s;
   std::vector<Car::State> previous_path_d;
 
-  tk::spline waypoint_spline_x;
-  tk::spline waypoint_spline_y;
-  tk::spline waypoint_spline_dx;
-  tk::spline waypoint_spline_dy;
+  MapHelper map_helper;
 
   PlannerState current_state;
 

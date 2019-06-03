@@ -174,24 +174,11 @@ public:
     double waypoint_x = waypoint_spline_x(projected_s);
     double waypoint_y = waypoint_spline_y(projected_s);
 
-    /*
     double waypoint_dx = waypoint_spline_dx(projected_s);
     double waypoint_dy = waypoint_spline_dy(projected_s);
-    */
 
-    auto norm_x = waypoint_spline_y.deriv(1, projected_s);
-    auto norm_y = -waypoint_spline_x.deriv(1, projected_s);
-
-    auto kd = std::sqrt(std::pow(d, 2) - pow(norm_x, 2) - pow(norm_y, 2));
-
-
-    /*
     double x = waypoint_x + waypoint_dx * d;
     double y = waypoint_y + waypoint_dy * d;
-    */
-
-    double x = waypoint_x + kd * norm_x;
-    double y = waypoint_y + kd * norm_y;
 
     return {x, y};
   }

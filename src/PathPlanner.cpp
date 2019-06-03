@@ -7,12 +7,8 @@ PathPlanner::PathPlanner(const std::vector<double>& waypoints_s,
   const std::vector<double> waypoints_y,
   const std::vector<double> waypoints_dx,
   const std::vector<double> waypoints_dy)
+  : map_helper(waypoints_s, waypoints_x, waypoints_y)
 {
-  // push points to spline for later smooting lane
-  waypoint_spline_x.set_points(waypoints_s, waypoints_x);
-  waypoint_spline_y.set_points(waypoints_s, waypoints_y);
-  waypoint_spline_dx.set_points(waypoints_s, waypoints_dx);
-  waypoint_spline_dy.set_points(waypoints_s, waypoints_dy);
 }
 
 std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
@@ -185,7 +181,8 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
       previous_path_s.push_back({new_s, new_s_dot, new_s_dot_dot});
       previous_path_d.push_back({new_d, new_d_dot, new_d_dot_dot});
 
-      std::vector<double> xy = Helpers::getXY(new_s, new_d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
+      //std::vector<double> xy = Helpers::getXY(new_s, new_d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
+      std::vector<double> xy = map_helper.getXY(previous_path_s.front().position, new_s, new_d);
 
       next_x.push_back(xy.at(0));
       next_y.push_back(xy.at(1));

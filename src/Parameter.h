@@ -7,6 +7,10 @@ public:
   static constexpr float k_lane_width = 4.0;          // m
   static constexpr int k_lane_count = 3;              // number of lanes
 
+  // map parameters
+  static constexpr float k_max_s = 6945.554;           // maximum s value before track end
+  static constexpr float k_max_interpol_window = 300.; // interpolation window around current s position
+
   // speed
   static constexpr float k_speed_limit = 22.2;        // m/s
   static constexpr float k_speed_buffer = 2.;         // m/s
