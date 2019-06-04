@@ -162,8 +162,14 @@ BehaviorTarget BehaviorHandler::keepLane(const Car::State& s_state, const double
 
   // speed depends on if there's a car in front
   if(   (lanes[target_lane].vehicles.empty() == true)
-    ||  (lanes[target_lane].distance_front > (Parameter::k_gap_buffer_time * Parameter::k_prediction_time * s_state.velocity))
-    ||  (lanes[target_lane].distance_rear > (Parameter::k_gap_buffer_time * Parameter::k_prediction_time * s_state.velocity))) {
+    ||  ((lanes[target_lane].distance_front > (Parameter::k_gap_buffer_time * Parameter::k_prediction_time * s_state.velocity)))) {
+        //&& (lanes[target_lane].distance_rear > (Parameter::k_prediction_time * s_state.velocity)))) {
+
+    std::cout << "++++++++++ No vehicle or far away" << std::endl;
+    std::cout << "++++++++++ Empty " << lanes[target_lane].vehicles.empty() << std::endl;
+    std::cout << "++++++++++ distance fr " << lanes[target_lane].distance_front << " vs. " << (Parameter::k_gap_buffer_time * Parameter::k_prediction_time * s_state.velocity) << std::endl;
+    std::cout << "++++++++++ distance re " << lanes[target_lane].distance_rear << " vs. " << (Parameter::k_gap_buffer_time * Parameter::k_prediction_time * s_state.velocity) << std::endl;
+
 
     target.speed = Parameter::k_speed_limit - Parameter::k_speed_buffer;
   } else {
@@ -173,8 +179,10 @@ BehaviorTarget BehaviorHandler::keepLane(const Car::State& s_state, const double
     // and slow down faster
     if(lanes[target_lane].distance_rear <= (Parameter::k_prediction_time * s_state.velocity)) {
       target.need_fast_reaction = true;
-      target.speed -= 1;
+      target.speed -= 2;
     }
+
+    std::cout << "++++++++++ Vehicle - target speed " << target.speed << std::endl;
   }
 
   } else if(current_fsm_state == s_LCL) {
