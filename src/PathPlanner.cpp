@@ -136,7 +136,7 @@ std::vector<std::vector<double>> PathPlanner::update(const Car& ego,
     // 50 points ==> 1 sec is used for trajectory generation, but we plan wide
     double time = Parameter::k_prediction_time + static_cast<double>(missing_ponts) * 0.02;
 
-    // adapt speed change to avoid excessive jerk or acceleration (2 m/s/s)
+    // adapt speed change to avoid excessive jerk or acceleration (1 m/s/s)
     // TODO: behavior can tell the speedup/slowdown rate based on other traffic --> use this here
     double target_speed = 0.;
 

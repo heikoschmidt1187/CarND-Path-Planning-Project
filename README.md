@@ -1,6 +1,52 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
-   
+
+# Writeup for the project
+## Rubric points
+
+The following rubric points were met to fullfil the project requirements:
+
+### The code compiles correctly.
+
+The code compiles successful without any errors. With the current compile options, there are Warning for the Spline library that fields are used that have an anonymous namespace. While this may be corrected in the future, it doesn't have an impact on the implementation and can be ignored safely
+
+### The car is able to drive at least 4.32 miles without incident.
+
+During my tests the car was able to drive several rounds on the track without any incidents most of the time. Besides that, there have been two rare cases where there were sporadic incidents where 1) the car was "out of lane" according to the simulator - from an optical perspective this wasn't the case as the car was in the middle of the rightmost lane - and 2) that there was a contact with another car that changed into our own lane very short before us. The last point was fixed with more defensive parameters and a better prediction of the position.
+
+As both points did not occur in the following tests and I wasn't able to reproduce them, I need to rely on the fact that the car can drive multiple rounds without incident.
+
+### The car drives according to the speed limit.
+
+The parameters have been chosen carefully to avoid speeding of the car at any cost. To have some space for maneuvers where fast reaction is needed, the target speed is at 45mph - 5mph below the speed limit. This leads to a smooth driving behavior in normal traffic.
+
+If there are slower cars in front and there's no lane change possible in a safe manner, the car slows down and maintains a safe distance to the traffic in front to be able to react in case anything unforseen happens.
+
+### Max Acceleration and Jerk are not Exceeded.
+
+The implementation uses Jerk Minimizing Trajectories (JMTs) to avoid exzessive jerk. The maximum acceleration/deceleration is limited due to the time for a lane change (2s) and the maximum speed change in s direction (1m/s^2) in normal driving and 2m/s^2 when fast reaction is needed (fast slowdown).
+
+### Car does not have collisions.
+
+The car is constantly monitoring the traffic around and checks for speed and lane change possibility. More on that in the implementation description below.
+
+### The car stays in its lane, except for the time between changing lanes.
+
+The implementation makes the car stay on the right side of the road. It has an affinity to the middle lane to have most of the time more possibilities to react (stay, change left, change right). If the car goes to the left or right lane due to a lane change, it will change back to the middle as soon as it's safe and the lane has the best speed possibility.
+
+The car only leaves a lane for a change - the target time for a complete lane change is 2s.
+
+### The car is able to change lanes
+
+As already written, the car is able to change lanes safely if the traffic in front is too slow. Most of the time it only changes lanes if this improves the speed for getting forward. Sometimes the changes are reverted because of the limited view into the future. This may be improved through better cost functions or delays for keep lane after lane changes.
+
+## Implementation description (Model Documentation)
+
+<TODO>
+
+
+## Original project instructions README
+
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).  
 
@@ -43,13 +89,13 @@ Here is the data provided from the Simulator to the C++ Program
 #### Previous path data given to the Planner
 
 //Note: Return the previous list but with processed points removed, can be a nice tool to show how far along
-the path has processed since last time. 
+the path has processed since last time.
 
 ["previous_path_x"] The previous list of x points previously given to the simulator
 
 ["previous_path_y"] The previous list of y points previously given to the simulator
 
-#### Previous path's end s and d values 
+#### Previous path's end s and d values
 
 ["end_path_s"] The previous list's last point's frenet s value
 
@@ -57,7 +103,7 @@ the path has processed since last time.
 
 #### Sensor Fusion Data, a list of all other car's attributes on the same side of the road. (No Noise)
 
-["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates. 
+["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates.
 
 ## Details
 
@@ -87,7 +133,7 @@ A really helpful resource for doing this project and creating smooth trajectorie
   * Run either `install-mac.sh` or `install-ubuntu.sh`.
   * If you install from source, checkout to commit `e94b6e1`, i.e.
     ```
-    git clone https://github.com/uWebSockets/uWebSockets 
+    git clone https://github.com/uWebSockets/uWebSockets
     cd uWebSockets
     git checkout e94b6e1
     ```
@@ -142,4 +188,3 @@ still be compilable with cmake and make./
 
 ## How to write a README
 A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
