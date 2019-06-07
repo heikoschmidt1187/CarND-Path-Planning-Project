@@ -51,7 +51,42 @@ Finding a feasable path consists of different steps that are running in a cyclic
 | Plan the movement for the next 2 seconds and return the Trajectory for the next 1 second   | PathPlanner.h/cpp |
 |  To generate a trajectory, the current state has to be used to predict the future and decide what to do (keep lane, change lanes, speed up, slow down, ...)  | BehaviorHandler.h/cpp  |
 | After decision, a safe trajectory needs to be generated  | TrajectoryHandler.h/cpp  |
-| To get drivable points, the points need to be converted into map coordinates and the space between given map waypoints need to be interpolated for a smooth movement   | MapHelper.h/cpp, spline.h, hekoers.h  |
+| To get drivable points, the points need to be converted into map coordinates and the space between given map waypoints need to be interpolated for a smooth movement   | MapHelper.h/cpp, spline.h, helpers.h  |
+
+In the following sections I will describe each of the above mentioned steps in detail and link it with the actual code.
+
+### main.cpp
+
+The code in main.cpp was provided by Udacity and implements the initial reading of the map data from a csv file and the cyclic communication with the simulator.
+
+The first modification was made after the initial reading *lines 60 to 64*. Here an object of the class *PathPlanner* is created and updated with the readout data - more on this below. The path planner is the core of my implementation and combines all necessary steps to make the car drive on it's own by returning points to be sent to the simulator.
+
+Also an object of the class *Car* is created to hold the current state of the *ego* car.
+
+The next modification has been done in the cyclic communication part with the simulator. You can find them *lines 114 to 132*.
+
+First, the ego state is updated with the current Frenet coordinates and speed of the own car. Next, the sensor fusion data is read out and converted to the *Car* class' format for further usage by the path planner object.
+
+Note here that each car's speed is calculated using the x- and y-speed component vectors:
+
+```C++
+  Car other(static_cast<int>(s[0]));
+
+  double speed = sqrt(pow(s[3], 2) + pow(s[4], 2));
+  other.update(s[5], s[6], speed);
+
+  other_cars.push_back(other);
+```
+
+All cars are pushed to the *other_cars* vector, which is also used by the path planner object.
+
+As a last point, the *update* function of the path planner is called to start the processing and retrieve the x- and y-coordinates of the points to be driven by the simulator:
+
+```C++
+  // plan!
+  auto xy = planner.update(ego,
+    previous_path_x, previous_path_y, other_cars, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+```
 
 
 ## Original Udacity project instructions README
