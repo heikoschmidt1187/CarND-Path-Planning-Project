@@ -233,10 +233,55 @@ And of course, the coefficients then are used to get the next points to fill the
 ```
 
 ### Planning the next steps (BehaviorHandler.h/BehaviorHandler.cpp)
-<TODO>
+
+The BehaviorHandler class uses a prediction of the future based on the current state to decide what the car should do next. Entry point for the calculation is the function *plan in BehaviorHandler.cpp lines 17 to 63*.
+
+First the car map - a list of surrounding cars in specific positions - is updated with the function *updateCarMap in BehaviorHandler.cpp lines 260 to 279* and *Lane::update lines 182 to 316*. The essence of the update is to calculate for each lane, relative to the current s position, the closest car in front and rear for each lane, their distance and speed. The data is then used to decide which lane to drive and if a lane change is can be done.
+
+After updating the car map, a finite state machine (FSM) is used to calculate the next steps:
+
+```C++
+  switch(current_fsm_state) {
+    case s_KL:
+      target = keepLane(s_state, future_time, d_state, other_cars);
+      break;
+
+    case s_LCL:
+      target = laneChangeLeft(s_state, d_state, other_cars);
+      break;
+
+    case s_LCR:
+      target = laneChangeRight(s_state, d_state, other_cars);
+      break;
+  }
+```
+
+The result of the BehaviorHandler is a BehaviorTarget which consists of a target lane, a target speed and the need_fast_reaction flag is action has to be taken immediately.
+
+For the *KeepLane* state, the handling is implemented in *BehaviorHandler.cpp lines 100 to 210*. It first calculates the current lane, gets the cost for each lane and checks for each lane if a change is safe.
+
+The lane cost calculation is done in *getLaneCost in BehaviorHandler.cpp lines 65 to 98*. Here a very simple cost function is used to a) prefer lanes with a faster speed over lanes with slower speed - limited by vehicles in front and speed limit, and b) prefer the middle lane over the side lanes as described above. Both are simple linear cost functions, no logistic function is used. The speed cost is also weighted higher than the lane number cost as it's more important to proceed faster than to have more options to change state.
+
+The *isLaneChangeSafe* function in *BehaviorHandler.cpp lines 318 to 348* checks according to the given lane and the car map around the ego car if a lane change is possible in a safe manner. For this, the distance to the front car, the distance to the rear car (both possibly forming a gap for change) and the speed of the rear car:
+
+```C++
+  return (  (lanes[check_lane].distance_rear > Parameter::k_gap_buffer_time * lanes[check_lane].closest_rear_speed)
+        &&  (lanes[check_lane].closest_rear_speed <= 1.5 * velocity)
+        &&  (lanes[check_lane].distance_front > Parameter::k_gap_buffer_time * velocity));
+```
+
 
 ### Getting a feasable JMT (TrajectoryHandler.h/TrajectoryHandler.cpp)
 <TODO>
+
+### Ideas and further improvement
+<TODO>
+
+- multi JMTs and costs for them
+- bigger look ahead and logic
+- prepare-states for lane change
+- cancel lane change calls
+- adaptive speeds on lane change
 
 ## Original Udacity project instructions README
 
