@@ -88,6 +88,155 @@ As a last point, the *update* function of the path planner is called to start th
     previous_path_x, previous_path_y, other_cars, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 ```
 
+### The path planner class (PathPlanner.h/PathPlanner.cpp)
+
+The path planner is the core of the whole algorithm. It combines the functional steps for prediction, planning the behavior and generating a trajectory.
+
+First of all, there's a special point in the constructor of the path planner at *PathPlanner.cpp line 10* - here an object of the MapHelper class is created.
+
+While implementing the path planner, I soon faced problems with converting the trajectory points to map coordinates. Almost always the acceleration and jerk went beyond the target values, the speed was too high even if the spacing between the points was ok. In the Q&A videos the spline.h library was used to smoothen the path and new points were generated using the two last points of the already existing path.
+
+As I wanted to use the JMT knowledge from the lessions, I decided not to use the approach from the Q&A video. But to get a smooth path, it was obvious that I need to interpolate the points between the given waypoints and use my own function to transform Frenet coordinates to map coordinates. That's what the MapHelper class is used for.
+
+The *MapHelper* class has two important functions: *setCurrentSplinePoints* and *getXY*.
+
+You can find the setCurrentSplinePoints function in *MapHelper.cpp lines 39 to 105*. The function uses the map waypoints around a given s-coordinate to setup the points of the spline class locally in a search window around that s-coordinate. The point here is that - as the JMT points are calculated as s-coordinated in a consecutive manner over rounds - the waypoints are transfered to match the position in the current track round. This is done by checking where on the track ("inside" a track round) and which round (n-th round starting by 0) the s is located in. If the search window overlaps two rounds, the values from the old and the new round are fitted.
+
+So with this, even s-values > than the 6945.554m (defined in Parameter.h, evaluated as value where the simulator overflows the s value to 0 at the track beginning) can be converted smoothely, so no problems occur on driving over the zero track point from the map data.
+
+The getXY function in *MapHelper.cpp lines 15 to 36* than uses the current spline objects to get the map coordinates from Frenet coordinates around the base s point. Note here, that first a base x- and y-coordinate is evaluated by the splines using the Frenet s. Then, for the resulting spline point the first derivatives are used to get the directions and distance to the desired Frenet d-coordinate. The normals are then used to calculate the final x and y map coordinate. The first_derivative function in the spline class is not present in the original library and was implemented for the usage in this project.
+
+Back to the path planner. The function that triggers the cyclic algorithm is called *update* and can be found in *PathPlanner.cpp lines 14 to 194*. It works the following way:
+
+In the *lines 23 to 82* the function checks how much path points are present after the last simulator cycle. This is the difference between the last given path and the consumed points by the car in the cycle. This value is then used to remove the same amount of points from the vectors *previous_path_s* and *previous_path_d* that represent the calculated trajectory path points:
+
+```C++
+  if((previous_path_x.size() > 0) && (previous_path_x.size() == previous_path_s.size())) {
+    // in this case, the simulator did not consume any of the generated points (usually not the case,
+    // did occur though while testing different states)
+    for(size_t i = 0; i < previous_path_x.size(); ++i) {
+      next_x.push_back(previous_path_x.at(i));
+      next_y.push_back(previous_path_y.at(i));
+    }
+  } else {
+    // update the previous s and d values according to the points not driven by
+    // the simulator in cycle
+    previous_path_s.erase(previous_path_s.begin(), previous_path_s.begin()
+      + previous_path_s.size() - previous_path_x.size());
+
+    previous_path_d.erase(previous_path_d.begin(), previous_path_d.begin()
+      + previous_path_d.size() - previous_path_x.size());
+
+[...]
+
+    // reuse previous path and use last s/d as base for new trajectory calculation
+    double farest_s = 0;
+
+    // first attempt: let the car drive in lane while maintaining speed
+    Car::State begin_s;
+    Car::State begin_d;
+
+    if(previous_path_s.size() > 0) {
+
+      begin_s = previous_path_s.back();
+      begin_s.position = 0.;
+      begin_d = previous_path_d.back();
+
+      farest_s = previous_path_s.back().position;
+    }
+    else {
+      previous_path_s.clear();
+      previous_path_d.clear();
+
+      begin_s = {0., 0., 0.};
+      begin_d = {ego.getD(), 0, 0};
+
+      farest_s = ego.getS();
+    }
+```
+
+The implementation needs to handle special cases where the previous path is empty or the simulator did not consume any points. Also, the current car state is calculated as this is used by the BehaviorPlanner object to plan the next steps. This is done with the following call:
+
+```C++
+  auto future = behavior_handler.plan(ego, {farest_s, begin_s.velocity, begin_s.acceleration},
+     previous_path_s.size() * 0.02,
+     {begin_d.position, begin_d.velocity, begin_d.acceleration}, other_cars);
+```
+
+The BehaviorPlanner is explained in the next section.
+
+The result of the behavior planner is used in *PathPlanner.cpp lines 87 to 131* to decide how much points of the last path should be reused. In the "normal" driving mode, all points are reused and later extended to get a total number of points to have a trajectory of at lease 1sec length. If there is any special case where we need immediate reaction, like chaning lanes or slowing down fast because a car is getting into our lane near us, the *need_fast_reaction* variable is set and only up to five of the previous points are reused. Why not 0? Because there's a delay between sending the points and using them in the simulator, so the car does not drive smoothely. Five points lead to a good driving.
+
+In *PathPlanner lines 134 to 161* the number of needed path points for the trajectory is calculated, and the time for the trajectory prediction for the JMT calculation is defined:
+
+```C++
+  int missing_ponts = 50 - previous_path_s.size();
+
+  // 50 points ==> 1 sec is used for trajectory generation, but we plan wide
+  double time = Parameter::k_prediction_time + static_cast<double>(missing_ponts) * 0.02;
+
+  // adapt speed change to avoid excessive jerk or acceleration (1 m/s/s)
+  // TODO: behavior can tell the speedup/slowdown rate based on other traffic --> use this here
+  double target_speed = 0.;
+
+  if(future.speed > begin_s.velocity)
+    target_speed = std::min(begin_s.velocity + time, future.speed);
+  else if(future.speed < begin_s.velocity)
+    target_speed = std::max(begin_s.velocity - time, future.speed);
+  else
+    target_speed = future.speed;
+
+[...]
+
+```
+
+Also, the speed change is limited to avoid too high acceleration values. This is done by increasing or decreasing the speed to the target speed from the behavior handler just about 1 m/s/s - which works fine in the cases that occur in the simulator. This may be further improved to react on unforseen situations to slow down or speed up with a higher velocity change rate.
+
+After that, the TrajectoryHandler object is called to generate coefficients for a JMT:
+
+```C++
+  auto trajectory = trajectory_handler.GenerateTrajectory(
+    begin_s,
+    begin_d,
+    {time * target_speed, target_speed, 0},
+    {2. + future.lane * 4., 0, 0},
+    time);
+```
+
+The TrajectoryHandler is described in one of the next sections.
+
+And of course, the coefficients then are used to get the next points to fill the previous path up to 50 points (or 1 sec):
+
+```C++
+  // calculate the states for each cycle - for this we need the derivatives of the coefficients
+  for(int i = 1; i <= (missing_ponts + 1); ++i) {
+
+    double new_s = TrajectoryHandler::getJmtVals(trajectory.c_s, i * 0.02) + farest_s;
+    double new_s_dot = TrajectoryHandler::getJmtVals(trajectory.c_s_dot, i * 0.02);
+    double new_s_dot_dot = TrajectoryHandler::getJmtVals(trajectory.c_s_dot_dot, i * 0.02);
+
+    double new_d = TrajectoryHandler::getJmtVals(trajectory.c_d, i * 0.02);
+    double new_d_dot = TrajectoryHandler::getJmtVals(trajectory.c_d_dot, i * 0.02);
+    double new_d_dot_dot = TrajectoryHandler::getJmtVals(trajectory.c_d_dot_dot, i * 0.02);
+
+    previous_path_s.push_back({new_s, new_s_dot, new_s_dot_dot});
+    previous_path_d.push_back({new_d, new_d_dot, new_d_dot_dot});
+
+    //std::vector<double> xy = Helpers::getXY(new_s, new_d, waypoint_spline_x, waypoint_spline_y, waypoint_spline_dx, waypoint_spline_dy);
+    std::vector<double> xy = map_helper.getXY(previous_path_s.front().position, new_s, new_d);
+
+    next_x.push_back(xy.at(0));
+    next_y.push_back(xy.at(1));
+
+  }
+}
+```
+
+### Planning the next steps (BehaviorHandler.h/BehaviorHandler.cpp)
+<TODO>
+
+### Getting a feasable JMT (TrajectoryHandler.h/TrajectoryHandler.cpp)
+<TODO>
 
 ## Original Udacity project instructions README
 
