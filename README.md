@@ -8,7 +8,7 @@ The following rubric points were met to fullfil the project requirements:
 
 ### The code compiles correctly.
 
-The code compiles successful without any errors. With the current compile options, there are Warning for the Spline library that fields are used that have an anonymous namespace. While this may be corrected in the future, it doesn't have an impact on the implementation and can be ignored safely
+The code compiles successful without any errors. With the current compile options, there are warnings for the Spline library that fields are used that have an anonymous namespace. While this may be corrected in the future, it doesn't have an impact on the implementation and can be ignored safely.
 
 ### The car is able to drive at least 4.32 miles without incident.
 
@@ -24,7 +24,7 @@ If there are slower cars in front and there's no lane change possible in a safe 
 
 ### Max Acceleration and Jerk are not Exceeded.
 
-The implementation uses Jerk Minimizing Trajectories (JMTs) to avoid exzessive jerk. The maximum acceleration/deceleration is limited due to the time for a lane change (2s) and the maximum speed change in s direction (1m/s^2) in normal driving and 2m/s^2 when fast reaction is needed (fast slowdown).
+The implementation uses Jerk Minimizing Trajectories (JMTs) to avoid excessive jerk. The maximum acceleration/deceleration is limited due to the time for a lane change (2s) and the maximum speed change in s direction (1m/s^2) in normal driving and 2m/s^2 when fast reaction is needed (fast slow down).
 
 ### Car does not have collisions.
 
@@ -42,10 +42,19 @@ As already written, the car is able to change lanes safely if the traffic in fro
 
 ## Implementation description (Model Documentation)
 
-<TODO>
+Finding a feasable path consists of different steps that are running in a cyclic manner. The steps have been encapsulated in different modules, like the following:
+
+|   Step    |   Module    |
+|-----------|-------------|
+| Reading Map Data from file (once), getting data from simulator, send processed data to simulator   | main.cpp  |
+| Update the current state of the cars on the track   | Car.h/cpp  |
+| Plan the movement for the next 2 seconds and return the Trajectory for the next 1 second   | PathPlanner.h/cpp |
+|  To generate a trajectory, the current state has to be used to predict the future and decide what to do (keep lane, change lanes, speed up, slow down, ...)  | BehaviorHandler.h/cpp  |
+| After decision, a safe trajectory needs to be generated  | TrajectoryHandler.h/cpp  |
+| To get drivable points, the points need to be converted into map coordinates and the space between given map waypoints need to be interpolated for a smooth movement   | MapHelper.h/cpp, spline.h, hekoers.h  |
 
 
-## Original project instructions README
+## Original Udacity project instructions README
 
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).  
