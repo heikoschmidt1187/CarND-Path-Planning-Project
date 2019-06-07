@@ -270,18 +270,71 @@ The *isLaneChangeSafe* function in *BehaviorHandler.cpp lines 318 to 348* checks
         &&  (lanes[check_lane].distance_front > Parameter::k_gap_buffer_time * velocity));
 ```
 
+Depending on the lane cost and the safety for a lane change, in *BehaviorHandler.cpp lines 122 to 156* the next FSM state is evaluated:
+
+```C++
+  if(predicted_lane == 0) {
+    // left-most lane, only compare right lane to the current
+    if(   (lane_cost.at(predicted_lane) > lane_cost.at(predicted_lane + 1))
+      &&  (lcr_safe == true)) {
+      current_fsm_state = s_LCR;
+    }
+  } else if(predicted_lane == (Parameter::k_lane_count - 1)) {
+    // right-most lane, only compare left lane to the current
+    if(   (lane_cost.at(predicted_lane) > lane_cost.at(predicted_lane - 1)
+      &&  (lcl_safe == true))) {
+      current_fsm_state = s_LCL;
+    }
+  } else {
+    // check both neighbor lanes - try to change to better lane first
+    if(lane_cost.at(predicted_lane - 1) <= lane_cost.at(predicted_lane + 1)) {
+
+      if(   (lane_cost.at(predicted_lane - 1) < lane_cost.at(predicted_lane))
+        &&  (lcl_safe == true)) {
+        current_fsm_state = s_LCL;
+      } else if(  (lane_cost.at(predicted_lane + 1) < lane_cost.at(predicted_lane))
+              &&  (lcr_safe == true)) {
+        current_fsm_state = s_LCR;
+      }
+
+    } else {
+
+      if(   (lane_cost.at(predicted_lane + 1) < lane_cost.at(predicted_lane))
+        &&  (lcr_safe == true)) {
+        current_fsm_state = s_LCR;
+      } else if(   (lane_cost.at(predicted_lane - 1) < lane_cost.at(predicted_lane))
+              &&   (lcl_safe == true)) {
+        current_fsm_state = s_LCL;
+      }
+    }
+  }
+```
+
+In summary, the algorithm checks for the possible next lanes, checks for the one with the lowest cost, then checks if the change to a lane with a lower cost is possible and - if yes - sets the corresponding lane change state. This leads to a car driving the fastest possible lane but only if a change is safe.
+
+After the state is evaluated, the current speed is calculated (lines 164 to 204). The essence here is to drive at the desired target speed (5mph below limit) if possible, else speed up or slow down according to the other traffic.
+
+The handling for the lane changes is simpler and described as an example here for the *laneChangeLeft - BehaviorHandler.cpp lines 212 to 233*. The *laneChangeRight - BehaviorHandler.cpp lines 236 to 257* works in a similar way. Both functions just calculate the current lane based on the d-position and checks if the lane change is finished - which is the case if the lateral speed is smaller than 0.3 meters per second. When the change is finished, the state is changed back to keep lane. Note that for now, the lane change is done at a constant speed without checking front and rear traffic while the change (approximately 2s) is done. This works well in the simulator, but in reality bad things may happen if other cars change into the target lane or speed up/slow down in the target lane while changing lanes.
 
 ### Getting a feasable JMT (TrajectoryHandler.h/TrajectoryHandler.cpp)
-<TODO>
+
+The trajectory handler module is used to calculate a trajectory with minimal jerk given by a desired future state. The implementation itself is based on the course lessons and uses the following functions:
+
+*GenerateTrajectory - TrajectoryHandler.cpp lines 69 to 94* calculates the coefficients for s and d, but not only for the position, but also for the velocity and acceleration. It used the getJmt function to get the position coefficients and uses a first and second derivative to calculate the other coefficents.
+
+*getJMT - TrajectoryHandler.cpp lines 5 to 38* uses a quintic polynomial to calculate the polynomial coefficients as described in the course lesson.
+
+*getJmtVals - TrajectoryHandler.cpp lines 40 to 67* can be used to obtain the value based on the coefficients and time. It therefore returns the position (6 coefficients), velocity (5 coefficients) or acceleration (4 coefficients).
 
 ### Ideas and further improvement
-<TODO>
 
-- multi JMTs and costs for them
-- bigger look ahead and logic
-- prepare-states for lane change
-- cancel lane change calls
-- adaptive speeds on lane change
+As written in the beginning of this writeup, the car drives safe several rounds in the simulator. While this should be enough to pass the project, the handling is far from optimal. The following ideas may improve the driving further:
+
+- use multiple JMTs, evaluate them with cost functions for target position, speed, acceleration and take the one with the best cost value for each cycle
+- look futher into the future - e.g. change into lanes with no cars instead of lanes with far away cars, calculate possibility to slow down while lane change and chose to stay in lane
+- predict the future of the other cars meaning using the current other car states from sensor fusion and predict position and velocity in next cycle - use this for better prediction
+- implement prepare states for lane changes to be able to adapt before the real change
+- use adaptive speeds while chaning lanes to avoid comming too close to other cars
 
 ## Original Udacity project instructions README
 
